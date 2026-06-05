@@ -1,0 +1,586 @@
+  <section id="viewForm" class="view">
+    <form id="assetForm" autocomplete="off">
+      <div class="form-card">
+        <div class="section-title">LEYENDA DE ESTADO DE CAMPOS - F-TIC-05</div>
+        <div class="legend-row">
+          <div class="legend-item"><span class="legend-dot bad"></span> Rojo: campo necesario pendiente</div>
+          <div class="legend-item"><span class="legend-dot info"></span> Azul: campo no aplicable o innecesario</div>
+          <div class="legend-item"><span class="legend-dot ok"></span> Verde: campo necesario completo</div>
+        </div>
+      </div>
+
+      <div class="form-card info">
+        <div class="section-title">AUDITOR POWERSHELL - generación del TXT técnico</div>
+
+        <p class="muted">
+          Uso obligatorio para PC-PORTÁTIL y PC-ESCRITORIO. Ejecutar en PowerShell como administrador:
+        </p>
+
+        <div class="command-box">
+          <code id="psCommand">irm "https://gist.github.com/soportetic-goydel/6a9149c0171cb151048cc7b60347c28a/raw" | iex</code>
+          <button type="button" class="btn-small" onclick="copyPowerShellCommand()">Copiar comando</button>
+        </div>
+
+        <p class="muted">
+          Gist fuente:
+          <a href="https://gist.github.com/soportetic-goydel/6a9149c0171cb151048cc7b60347c28a" target="_blank" rel="noopener">
+            soportetic-goydel/6a9149c0171cb151048cc7b60347c28a
+          </a>
+        </p>
+
+        <ol class="steps">
+          <li>Abrir PowerShell como administrador.</li>
+          <li>Copiar y pegar el comando mostrado.</li>
+          <li>Presionar Enter y esperar la generación del TXT.</li>
+          <li>Ubicar el TXT en Documentos.</li>
+          <li>Volver a esta WebApp, subir el TXT y presionar PROCESAR.</li>
+        </ol>
+
+        <div id="psCommandStatus" class="status"></div>
+      </div>
+
+      <div class="form-card info">
+        <div class="section-title">1. INGRESO DE FUENTE - TXT de auditoría o registro manual</div>
+
+        <div class="grid-2">
+          <div>
+            <label class="required">TIPO DE HARDWARE</label>
+            <select id="tipo_activo_top" onchange="syncAssetTypeFromTop()">
+              <option value="PC-PORTÁTIL">PC-PORTÁTIL</option>
+              <option value="PC-ESCRITORIO">PC-ESCRITORIO</option>
+              <option value="SMARTPHONE">SMARTPHONE</option>
+              <option value="IMPRESORA">IMPRESORA</option>
+              <option value="ESCÁNER">ESCÁNER</option>
+              <option value="MONITOR">MONITOR</option>
+            </select>
+            <span class="field-help">El formulario técnico se ajustará según el tipo seleccionado.</span>
+          </div>
+
+          <div>
+            <label class="required">Origen del registro</label>
+            <select name="modo_registro" id="modo_registro" onchange="changeRegistrationMode()">
+              <option value="AUDITOR_TXT">TXT DE AUDITORÍA WINDOWS</option>
+              <option value="MANUAL">REGISTRO MANUAL SIN TXT</option>
+            </select>
+            <span class="field-help">Usar TXT para PC. Usar manual cuando no exista TXT del activo.</span>
+          </div>
+        </div>
+
+        <div id="txtUploadPanel">
+          <p class="note">
+            El TXT se mantiene en caché local de la WebApp. Recién al guardar el registro se subirá a Drive en la carpeta Registros, dividido por CECO y con nombre ID de activo - Serie.
+          </p>
+
+          <div id="dropZone" class="drop-zone" onclick="document.getElementById('txtFile').click()">
+            <div>
+              <strong>Arrastrar y soltar TXT aquí</strong><br>
+              <span id="txtFileLabel" class="muted">O hacer clic para seleccionar el archivo generado por PowerShell.</span>
+            </div>
+          </div>
+
+          <input type="file" id="txtFile" accept=".txt" class="hidden">
+
+          <div class="upload-actions">
+            <button type="button" id="processTxtButton" onclick="processCachedTxt()" disabled>PROCESAR</button>
+            <button type="button" id="removeTxtButton" class="danger" onclick="clearUploadedTxt()" disabled>ELIMINAR SUBIDA</button>
+          </div>
+        </div>
+
+        <p id="manualModeNote" class="note hidden">
+          Registro manual habilitado. Completar los datos disponibles y dejar en N/A los campos que no aplican según el tipo de activo.
+        </p>
+
+        <div id="loadStatus" class="status"></div>
+      </div>
+
+      <div id="previewSection" class="form-card" style="display:none;">
+        <div class="section-title">2. PREVISUALIZACIÓN TÉCNICA - datos detectados</div>
+        <table id="previewTable"></table>
+      </div>
+
+      <div class="form-card">
+        <div class="section-title">3. ESPECIFICACIONES TÉCNICAS - F-TIC-05 y MC-F-TIC-05</div>
+        <p class="note">
+          Los campos aplicables alimentan el F-TIC-05. Los campos complementarios conservan detalle técnico para MC-F-TIC-05. Usar N/A solo cuando el campo no corresponda al tipo de activo.
+        </p>
+
+        <div class="subsection-title">OBLIGATORIOS / aplicables para F-TIC-05</div>
+        <div class="grid">
+          <div>
+            <label>ID DE ACTIVO</label>
+            <input name="id_activo" id="id_activo" readonly>
+          </div>
+
+          <div>
+            <label class="required">NÚMERO DE SERIE O IMEI</label>
+            <input name="serie_service_tag" id="serie_service_tag">
+          </div>
+
+          <div>
+            <label class="required">MARCA</label>
+            <input name="marca" id="marca">
+          </div>
+
+          <div>
+            <label class="required">MODELO</label>
+            <input name="modelo" id="modelo">
+          </div>
+
+          <div>
+            <label>NOMBRE DEL DISPOSITIVO</label>
+            <input name="hostname" id="hostname">
+          </div>
+
+          <div>
+            <label>SISTEMA OPERATIVO</label>
+            <input name="sistema_operativo" id="sistema_operativo">
+          </div>
+
+          <div>
+            <label>PROCESADOR</label>
+            <input name="procesador" id="procesador">
+          </div>
+
+          <div>
+            <label>MEMORIA RAM</label>
+            <select name="memoria_ram_texto" id="memoria_ram_texto" onchange="syncRamGb()">
+              <option value="">Seleccionar</option>
+              <option value="N/A">N/A</option>
+              <option value="4 GB">4 GB</option>
+              <option value="6 GB">6 GB</option>
+              <option value="8 GB">8 GB</option>
+              <option value="12 GB">12 GB</option>
+              <option value="16 GB">16 GB</option>
+              <option value="32 GB">32 GB</option>
+              <option value="64 GB">64 GB</option>
+            </select>
+            <input name="memoria_ram_gb" id="memoria_ram_gb" type="hidden">
+          </div>
+
+          <div>
+            <label>ALMACENAMIENTO</label>
+            <input name="almacenamiento" id="almacenamiento">
+          </div>
+
+          <div>
+            <label>TARJETA DE VIDEO</label>
+            <input name="tarjeta_video" id="tarjeta_video">
+          </div>
+
+          <div>
+            <label>DIRECCIÓN MAC</label>
+            <input name="direccion_mac" id="direccion_mac">
+          </div>
+
+          <div>
+            <label>DIRECCIÓN IP</label>
+            <input name="direccion_ip" id="direccion_ip">
+          </div>
+
+          <div>
+            <label>NÚMERO MÓVIL</label>
+            <input name="numero_movil" id="numero_movil" maxlength="20">
+          </div>
+
+          <div>
+            <label>CONECTIVIDAD U OPERADOR</label>
+            <select name="operador" id="operador">
+              <option value="">Seleccionar</option>
+              <option value="N/A">N/A</option>
+              <option value="CLARO">CLARO</option>
+              <option value="MOVISTAR">MOVISTAR</option>
+              <option value="ENTEL">ENTEL</option>
+              <option value="BITEL">BITEL</option>
+              <option value="DINAMICA">DINAMICA</option>
+              <option value="IP FIJA">IP FIJA</option>
+            </select>
+          </div>
+
+          <div>
+            <label>CARACTERÍSTICA ESPECIAL</label>
+            <input name="caracteristica_especial" id="caracteristica_especial">
+          </div>
+
+          <div>
+            <label>SOFTWARE O CORREO</label>
+            <input name="software_o_correo" id="software_o_correo">
+          </div>
+        </div>
+
+        <div class="subsection-title">BASE TÉCNICA MC-F-TIC-05</div>
+        <div class="grid">
+          <div>
+            <label>Usuario Windows detectado</label>
+            <input name="usuario_windows" id="usuario_windows" readonly>
+          </div>
+
+          <div>
+            <label>Versión del sistema operativo</label>
+            <input name="version_so" id="version_so">
+          </div>
+
+          <div>
+            <label>Tipo de almacenamiento</label>
+            <select name="tipo_almacenamiento" id="tipo_almacenamiento">
+              <option value="">Seleccionar</option>
+              <option value="N/A">N/A</option>
+              <option value="SSD NVME">SSD NVME</option>
+              <option value="SSD">SSD</option>
+              <option value="HDD">HDD</option>
+              <option value="EMMC">EMMC</option>
+              <option value="UFS">UFS</option>
+            </select>
+          </div>
+
+          <div>
+            <label>Antivirus detectado</label>
+            <input name="antivirus" id="antivirus">
+          </div>
+
+          <div>
+            <label>Pantalla pulgadas</label>
+            <input name="pantalla_pulgadas" id="pantalla_pulgadas">
+          </div>
+
+          <div>
+            <label>Batería mAh</label>
+            <input name="bateria_mah" id="bateria_mah" type="number" step="1">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-card warning">
+        <div class="section-title">4. VALIDACIÓN ADMINISTRATIVA - personal, CECO y estado</div>
+
+        <div class="subsection-title">DATOS PERSONALES / asignación</div>
+        <div class="grid">
+          <div>
+            <label>DNI usuario</label>
+            <div class="input-action">
+              <input name="dni_usuario" id="dni_usuario" maxlength="8" onblur="buscarDni(false)" placeholder="8 dígitos">
+              <button type="button" id="dniLookupButton" class="icon-button" title="Buscar DNI en base de personal" onclick="buscarDni(true)">⌕</button>
+            </div>
+            <span id="dniLookupStatus" class="lookup-status">Busca en la base de datos de personal.</span>
+          </div>
+
+          <div>
+            <label class="required">EMPRESA</label>
+            <select name="empresa_grupo" id="empresa_grupo" onchange="cargarCecos(this.value)">
+              <option value="">Seleccionar</option>
+              <option value="GOYDEL">GOYDEL SAC</option>
+              <option value="TDEM">TDEM SRL</option>
+              <option value="METRIN">METRIN SAC</option>
+              <option value="PERSONAL">PERSONAL</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="required">NOMBRES Y APELLIDOS</label>
+            <input name="usuario_asignado" id="usuario_asignado">
+          </div>
+
+          <div>
+            <label>Cargo</label>
+            <input name="cargo_usuario" id="cargo_usuario" readonly>
+          </div>
+
+          <div>
+            <label>Área</label>
+            <input name="area_usuario" id="area_usuario" readonly>
+          </div>
+
+          <div>
+            <label class="required">Proyecto / sede</label>
+            <input name="proyecto_sede" id="proyecto_sede" oninput="syncLocationFromProject()">
+          </div>
+
+          <div>
+            <label class="required">CECO</label>
+            <select name="centro_de_costo" id="centro_de_costo" onchange="syncProjectFromCeco()">
+              <option value="">Seleccionar CECO</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="subsection-title">ESTADO DEL ACTIVO / control de registro</div>
+        <div class="grid">
+          <div>
+            <label class="required">TIPO DE HARDWARE</label>
+            <select name="tipo_activo" id="tipo_activo" onchange="syncAssetTypeFromAdmin()">
+              <option value="PC-PORTÁTIL">PC-PORTÁTIL</option>
+              <option value="PC-ESCRITORIO">PC-ESCRITORIO</option>
+              <option value="SMARTPHONE">SMARTPHONE</option>
+              <option value="IMPRESORA">IMPRESORA</option>
+              <option value="ESCÁNER">ESCÁNER</option>
+              <option value="MONITOR">MONITOR</option>
+            </select>
+          </div>
+
+          <div>
+            <label>Estado de registro</label>
+            <select name="estado_registro" id="estado_registro">
+              <option value="ACTIVO">ACTIVO</option>
+              <option value="STAND BY">STAND BY</option>
+              <option value="EN MANTENIMIENTO">EN MANTENIMIENTO</option>
+              <option value="STOCK DISPONIBLE">STOCK DISPONIBLE</option>
+              <option value="BAJA">BAJA</option>
+              <option value="RAEE">RAEE</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="required">ESTADO OPERATIVO</label>
+            <select name="estado_operativo" id="estado_operativo">
+              <option value="OPERATIVO">OPERATIVO</option>
+              <option value="INOPERATIVO">INOPERATIVO</option>
+              <option value="EN MANTENIMIENTO">EN MANTENIMIENTO</option>
+              <option value="DE BAJA">DE BAJA</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="required">CONDICIÓN</label>
+            <select name="condicion" id="condicion">
+              <option value="NUEVO">NUEVO</option>
+              <option value="BUENO">BUENO</option>
+              <option value="REGULAR">REGULAR</option>
+              <option value="MALO">MALO</option>
+            </select>
+          </div>
+
+          <div>
+            <label>Fecha de entrega</label>
+            <input name="fecha_entrega" id="fecha_entrega" placeholder="DD/MM/AAAA o N/A">
+            <span class="field-help">Formato requerido: DD/MM/AAAA. Usar N/A solo si está en almacén.</span>
+          </div>
+        </div>
+
+        <input name="ubicacion_fisica" id="ubicacion_fisica" type="hidden">
+        <p class="muted">UBICACIÓN del F-TIC-05 se completará automáticamente con Proyecto / sede.</p>
+      </div>
+
+      <div class="form-card success evidence-panel">
+        <div class="section-title">5. Documentación y evidencia - Drive</div>
+
+        <div class="evidence-summary">
+          <div>
+            <strong id="evidenceCounter">Evidencias cargadas: 0 / 7</strong>
+            <span>Pega una URL o sube un archivo. La WebApp conservará compatibilidad con Drive y copiará/subirá lo disponible.</span>
+          </div>
+        </div>
+
+        <div class="evidence-grid">
+          <div class="evidence-card optional" data-evidence-field="link_acta_entrega_f_tic_04" data-required="false">
+            <div class="evidence-head">
+              <div class="evidence-title">Acta de Entrega F-TIC-04</div>
+              <span class="evidence-badge">Pendiente</span>
+            </div>
+            <input class="evidence-input" name="link_acta_entrega_f_tic_04" id="link_acta_entrega_f_tic_04" placeholder="URL o código documental">
+            <input type="file" class="evidence-file" id="upload_link_acta_entrega_f_tic_04">
+            <span class="evidence-upload-state" id="state_link_acta_entrega_f_tic_04">Pendiente</span>
+            <span class="evidence-help">Documento opcional que formaliza la entrega del activo si ya existe.</span>
+          </div>
+
+          <div class="evidence-card optional" data-evidence-field="link_informe_mtto_f_tic_11" data-required="false">
+            <div class="evidence-head">
+              <div class="evidence-title">Informe de Mtto. F-TIC-11</div>
+              <span class="evidence-badge">Pendiente</span>
+            </div>
+            <input class="evidence-input" name="link_informe_mtto_f_tic_11" id="link_informe_mtto_f_tic_11" placeholder="URL o código documental">
+            <input type="file" class="evidence-file" id="upload_link_informe_mtto_f_tic_11">
+            <span class="evidence-upload-state" id="state_link_informe_mtto_f_tic_11">Pendiente</span>
+            <span class="evidence-help">Informe de mantenimiento opcional cuando exista sustento técnico.</span>
+          </div>
+
+          <div class="evidence-card optional" data-evidence-field="link_checklist_f_tic_02" data-required="false">
+            <div class="evidence-head">
+              <div class="evidence-title">Checklist PC F-TIC-02</div>
+              <span class="evidence-badge">Opcional</span>
+            </div>
+            <input class="evidence-input" name="link_checklist_f_tic_02" id="link_checklist_f_tic_02">
+            <input type="file" class="evidence-file" id="upload_link_checklist_f_tic_02">
+            <span class="evidence-upload-state" id="state_link_checklist_f_tic_02">Pendiente</span>
+            <span class="evidence-help">Aplica principalmente para PC-PORTÁTIL y PC-ESCRITORIO.</span>
+          </div>
+
+          <div class="evidence-card optional" data-evidence-field="link_checklist_f_tic_03" data-required="false">
+            <div class="evidence-head">
+              <div class="evidence-title">Checklist Móvil F-TIC-03</div>
+              <span class="evidence-badge">Opcional</span>
+            </div>
+            <input class="evidence-input" name="link_checklist_f_tic_03" id="link_checklist_f_tic_03">
+            <input type="file" class="evidence-file" id="upload_link_checklist_f_tic_03">
+            <span class="evidence-upload-state" id="state_link_checklist_f_tic_03">Pendiente</span>
+            <span class="evidence-help">Usar cuando el activo registrado sea SMARTPHONE.</span>
+          </div>
+
+          <div class="evidence-card optional" data-evidence-field="link_factura_compra" data-required="false">
+            <div class="evidence-head">
+              <div class="evidence-title">Factura / sustento</div>
+              <span class="evidence-badge">Opcional</span>
+            </div>
+            <input class="evidence-input" name="link_factura_compra" id="link_factura_compra">
+            <input type="file" class="evidence-file" id="upload_link_factura_compra">
+            <span class="evidence-upload-state" id="state_link_factura_compra">Pendiente</span>
+            <span class="evidence-help">Sustento de adquisición, compra o regularización patrimonial.</span>
+          </div>
+
+          <div class="evidence-card optional" data-evidence-field="url_evidencia_foto" data-required="false">
+            <div class="evidence-head">
+              <div class="evidence-title">Evidencia foto</div>
+              <span class="evidence-badge">Opcional</span>
+            </div>
+            <input class="evidence-input" name="url_evidencia_foto" id="url_evidencia_foto">
+            <input type="file" class="evidence-file" id="upload_url_evidencia_foto" accept="image/*,.pdf">
+            <span class="evidence-upload-state" id="state_url_evidencia_foto">Pendiente</span>
+            <span class="evidence-help">Foto del activo, etiqueta, serie, estado físico o accesorios.</span>
+          </div>
+
+          <div class="evidence-card optional" data-evidence-field="url_evidencia_adicional" data-required="false">
+            <div class="evidence-head">
+              <div class="evidence-title">Evidencia adicional</div>
+              <span class="evidence-badge">Opcional</span>
+            </div>
+            <input class="evidence-input" name="url_evidencia_adicional" id="url_evidencia_adicional">
+            <input type="file" class="evidence-file" id="upload_url_evidencia_adicional">
+            <span class="evidence-upload-state" id="state_url_evidencia_adicional">Pendiente</span>
+            <span class="evidence-help">Repositorio, carpeta o archivo complementario del activo.</span>
+          </div>
+
+          <div class="evidence-card review" data-evidence-field="faltan_accesorios" data-required="false">
+            <div class="evidence-head">
+              <div class="evidence-title">Faltan accesorios</div>
+              <span class="evidence-badge">Por revisar</span>
+            </div>
+            <select class="evidence-input" name="faltan_accesorios" id="faltan_accesorios">
+              <option value="NO">NO</option>
+              <option value="SI">SI</option>
+            </select>
+            <span class="evidence-help">Seleccionar SÍ solo si falta algún componente; detallar en observaciones.</span>
+          </div>
+
+          <div class="evidence-card evidence-wide review" data-evidence-field="observaciones" data-required="false">
+            <div class="evidence-head">
+              <div class="evidence-title">Observaciones</div>
+              <span class="evidence-badge">Por revisar</span>
+            </div>
+            <textarea class="evidence-input" name="observaciones" id="observaciones" placeholder="N/A, estado físico, reparaciones, IMEI 2 u otra aclaración técnica."></textarea>
+            <span class="evidence-help">Aclaraciones técnicas, accesorios faltantes, reparaciones o sustento de N/A.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="section-title">6. REGISTRO FINAL - guardar en F-TIC-05 y MC-F-TIC-05</div>
+
+        <div class="action-row">
+          <button type="button" class="danger" onclick="clearForm()">BORRAR FORMULARIO</button>
+          <button type="button" id="saveRecordButton" class="success" onclick="saveRecord()">GUARDAR EN AMBOS INVENTARIOS</button>
+          <button type="button" class="secondary" onclick="showView('viewTable')">Volver a F-TIC-05</button>
+        </div>
+
+        <div id="saveStatus" class="status"></div>
+      </div>
+
+      <datalist id="serialHints">
+        <option value="N/A"></option>
+      </datalist>
+      <datalist id="marcaHints">
+        <option value="HP"></option>
+        <option value="LENOVO"></option>
+        <option value="DELL"></option>
+        <option value="SAMSUNG"></option>
+        <option value="EPSON"></option>
+        <option value="CANON"></option>
+        <option value="BROTHER"></option>
+        <option value="LG"></option>
+        <option value="AOC"></option>
+      </datalist>
+      <datalist id="modeloHints">
+        <option value="THINKPAD E14 GEN 4"></option>
+        <option value="ELITEBOOK"></option>
+        <option value="LATITUDE"></option>
+        <option value="GALAXY A54"></option>
+        <option value="ECOTANK L3250"></option>
+      </datalist>
+      <datalist id="naHints">
+        <option value="N/A"></option>
+      </datalist>
+      <datalist id="osHints">
+        <option value="WINDOWS 11 PRO"></option>
+        <option value="WINDOWS 10 PRO"></option>
+        <option value="ANDROID 13"></option>
+        <option value="ANDROID 14"></option>
+        <option value="FIRMWARE"></option>
+        <option value="N/A"></option>
+      </datalist>
+      <datalist id="versionOsHints">
+        <option value="22H2"></option>
+        <option value="23H2"></option>
+        <option value="24H2"></option>
+        <option value="N/A"></option>
+      </datalist>
+      <datalist id="procesadorHints">
+        <option value="INTEL CORE I3"></option>
+        <option value="INTEL CORE I5"></option>
+        <option value="INTEL CORE I7"></option>
+        <option value="AMD RYZEN 5"></option>
+        <option value="SNAPDRAGON"></option>
+        <option value="N/A"></option>
+      </datalist>
+      <datalist id="almacenamientoHints">
+        <option value="128 GB UFS"></option>
+        <option value="256 GB SSD"></option>
+        <option value="512 GB SSD NVME"></option>
+        <option value="1 TB SSD NVME"></option>
+        <option value="N/A"></option>
+      </datalist>
+      <datalist id="gpuHints">
+        <option value="INTEL UHD"></option>
+        <option value="INTEL IRIS XE"></option>
+        <option value="AMD RADEON"></option>
+        <option value="NVIDIA RTX 3050"></option>
+        <option value="N/A"></option>
+      </datalist>
+      <datalist id="ipHints">
+        <option value="DINAMICA"></option>
+        <option value="IP FIJA"></option>
+        <option value="N/A"></option>
+      </datalist>
+      <datalist id="caracteristicaHints">
+        <option value="N/A"></option>
+        <option value="PANTALLA TACTIL"></option>
+        <option value="DUAL SIM"></option>
+        <option value="PLOTTER A1"></option>
+        <option value="ALIMENTADOR ADF"></option>
+        <option value="PANTALLA CURVA"></option>
+      </datalist>
+      <datalist id="softwareHints">
+        <option value="N/A"></option>
+        <option value="OFFICE 365 BUSINESS"></option>
+        <option value="AUTOCAD 2024"></option>
+        <option value="ANTIVIRUS CORPORATIVO"></option>
+      </datalist>
+      <datalist id="antivirusHints">
+        <option value="WINDOWS DEFENDER"></option>
+        <option value="MCAFEE"></option>
+        <option value="TRELLIX"></option>
+        <option value="N/A"></option>
+      </datalist>
+      <datalist id="pantallaHints">
+        <option value="14"></option>
+        <option value="15.6"></option>
+        <option value="21.5"></option>
+        <option value="24"></option>
+        <option value="27"></option>
+        <option value="N/A"></option>
+      </datalist>
+      <datalist id="fechaHints">
+        <option value="N/A"></option>
+      </datalist>
+      <datalist id="usuarioHints">
+        <option value="ALMACEN TIC"></option>
+        <option value="COMUN"></option>
+      </datalist>
+    </form>
+  </section>

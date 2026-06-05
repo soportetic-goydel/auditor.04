@@ -1,0 +1,27 @@
+<script>
+  function loadPersonnelTable() {
+    showStatus('personnelStatus', 'warn', 'Cargando personal...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res.ok) {
+          showStatus('personnelStatus', 'err', res.message || 'No se pudo cargar personal.');
+          return;
+        }
+
+        personnelCache = res.rows || [];
+        personnelHeaders = res.headers || [];
+        renderSimpleTable('personnelTable', personnelHeaders, personnelCache);
+        showStatus('personnelStatus', 'ok', 'Personal actualizado.');
+      })
+      .withFailureHandler(function(err) {
+        showStatus('personnelStatus', 'err', err.message || String(err));
+      })
+      .getPersonnelList();
+  }
+
+  function filterPersonnelTable() {
+    const q = document.getElementById('personnelSearch').value.toLowerCase().trim();
+    renderSimpleTable('personnelTable', personnelHeaders, filterRowsByQuery(personnelCache, q));
+  }
+</script>

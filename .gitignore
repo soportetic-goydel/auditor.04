@@ -1,0 +1,14 @@
+.clasprc.json
+.env
+.env.*
+
+node_modules/
+
+*.log
+*.tmp
+*.bak
+
+Thumbs.db
+.DS_Store
+
+ftic05/

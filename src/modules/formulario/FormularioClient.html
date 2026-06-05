@@ -1,0 +1,899 @@
+<script>
+  function copyPowerShellCommand() {
+    const command = document.getElementById('psCommand').innerText;
+
+    navigator.clipboard.writeText(command)
+      .then(function() {
+        showStatus('psCommandStatus', 'ok', 'Comando copiado. Pégalo en PowerShell como administrador.');
+      })
+      .catch(function() {
+        showStatus('psCommandStatus', 'err', 'No se pudo copiar automáticamente. Copia el comando manualmente.');
+      });
+  }
+
+  function initUploadControls() {
+    const fileInput = document.getElementById('txtFile');
+    const dropZone = document.getElementById('dropZone');
+
+    fileInput.addEventListener('change', function() {
+      if (fileInput.files && fileInput.files[0]) {
+        cacheTxtFile(fileInput.files[0]);
+      }
+    });
+
+    ['dragenter', 'dragover'].forEach(function(eventName) {
+      dropZone.addEventListener(eventName, function(e) {
+        e.preventDefault();
+        if (isManualMode()) return;
+        dropZone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(function(eventName) {
+      dropZone.addEventListener(eventName, function(e) {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+      });
+    });
+
+    dropZone.addEventListener('drop', function(e) {
+      if (isManualMode()) return;
+      const file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) cacheTxtFile(file);
+    });
+  }
+
+  function cacheTxtFile(file) {
+    if (!file || !/\.txt$/i.test(file.name)) {
+      showStatus('loadStatus', 'err', 'Solo se permite cargar archivos TXT.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      cachedTxt = {
+        name: file.name,
+        content: e.target.result || '',
+        processed: false
+      };
+
+      document.getElementById('txtFileLabel').textContent = file.name + ' listo en caché. Presiona PROCESAR para leer el payload.';
+      document.getElementById('dropZone').classList.add('has-file');
+      document.getElementById('processTxtButton').disabled = false;
+      document.getElementById('removeTxtButton').disabled = false;
+      showStatus('loadStatus', 'ok', 'TXT cargado en caché local: ' + file.name);
+    };
+
+    reader.onerror = function() {
+      showStatus('loadStatus', 'err', 'No se pudo leer el archivo local.');
+    };
+
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  function processCachedTxt() {
+    const processButton = document.getElementById('processTxtButton');
+    if (!cachedTxt.content) {
+      showStatus('loadStatus', 'err', 'Primero sube un TXT.');
+      return;
+    }
+
+    showStatus('loadStatus', 'warn', 'Procesando TXT y leyendo payload...');
+    setButtonLoading(processButton, true, 'Procesando...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        setButtonLoading(processButton, false);
+        if (!res.ok) {
+          showStatus('loadStatus', 'err', res.message || 'No se pudo procesar el TXT.');
+          return;
+        }
+
+        cachedTxt.processed = true;
+        currentPayload = res.payload || {};
+        currentPayload.audit_txt_name = cachedTxt.name;
+        currentPayload.audit_txt_content = cachedTxt.content;
+
+        fillForm(currentPayload);
+        renderPreview(res.preview || []);
+        clearRegularizationHighlights();
+
+        let msg = 'TXT procesado correctamente. Revisa los campos y completa lo pendiente.';
+        if (res.missing && res.missing.length) {
+          msg += '\n\nCampos pendientes o recomendados:\n- ' + res.missing.join('\n- ');
+        }
+
+        showStatus('loadStatus', 'ok', msg);
+      })
+      .withFailureHandler(function(err) {
+        setButtonLoading(processButton, false);
+        showStatus('loadStatus', 'err', err.message || String(err));
+      })
+      .parseAuditTxt(cachedTxt.content);
+  }
+
+  function clearUploadedTxt() {
+    if (!confirm('Se eliminará la subida TXT de la caché local. Los campos ya cargados permanecerán editables. ¿Confirmar?')) {
+      return;
+    }
+
+    cachedTxt = { name: '', content: '', processed: false };
+    document.getElementById('txtFile').value = '';
+    document.getElementById('txtFileLabel').textContent = 'O hacer clic para seleccionar el archivo generado por PowerShell.';
+    document.getElementById('dropZone').classList.remove('has-file');
+    document.getElementById('processTxtButton').disabled = true;
+    document.getElementById('removeTxtButton').disabled = true;
+    showStatus('loadStatus', 'warn', 'Subida TXT eliminada de la caché local.');
+  }
+
+  function changeRegistrationMode() {
+    const manual = isManualMode();
+    const dropZone = document.getElementById('dropZone');
+
+    document.getElementById('txtUploadPanel').classList.toggle('hidden', manual);
+    document.getElementById('manualModeNote').classList.toggle('hidden', !manual);
+    dropZone.classList.toggle('disabled', manual);
+
+    if (manual && isComputerType(document.getElementById('tipo_activo').value)) {
+      setAssetType('SMARTPHONE');
+    }
+
+    if (!manual && !isComputerType(document.getElementById('tipo_activo').value)) {
+      setAssetType('PC-PORTÁTIL');
+    }
+
+    updateFieldStates();
+  }
+
+  function isManualMode() {
+    return document.getElementById('modo_registro').value === 'MANUAL';
+  }
+
+  function syncAssetTypeFromTop() {
+    setAssetType(document.getElementById('tipo_activo_top').value);
+  }
+
+  function syncAssetTypeFromAdmin() {
+    setAssetType(document.getElementById('tipo_activo').value);
+  }
+
+  function setAssetType(value) {
+    const type = canonicalAssetType(value) || 'PC-PORTÁTIL';
+    document.getElementById('tipo_activo_top').value = type;
+    document.getElementById('tipo_activo').value = type;
+    applyApplicabilityDefaults(true);
+    updateFieldStates();
+    updateEvidenceStatus();
+  }
+  function fillForm(payload) {
+    const form = document.getElementById('assetForm');
+    const p = payload || {};
+
+    Object.keys(p).forEach(function(key) {
+      const el = form.elements[key];
+      if (el) el.value = p[key] || '';
+    });
+
+    const normalizedCompany = canonicalCompany(document.getElementById('empresa_grupo').value || p.empresa_grupo);
+    if (normalizedCompany) {
+      document.getElementById('empresa_grupo').value = normalizedCompany;
+    }
+
+    if (!document.getElementById('tipo_activo').value) {
+      document.getElementById('tipo_activo').value = 'PC-PORTÁTIL';
+    }
+
+    setAssetType(document.getElementById('tipo_activo').value);
+
+    if (!document.getElementById('estado_registro').value) {
+      document.getElementById('estado_registro').value = 'ACTIVO';
+    }
+
+    if (!document.getElementById('estado_operativo').value) {
+      document.getElementById('estado_operativo').value = 'OPERATIVO';
+    }
+
+    if (!document.getElementById('condicion').value) {
+      document.getElementById('condicion').value = 'BUENO';
+    }
+
+    if (!document.getElementById('faltan_accesorios').value) {
+      document.getElementById('faltan_accesorios').value = 'NO';
+    }
+
+    if (!document.getElementById('observaciones').value.trim()) {
+      document.getElementById('observaciones').value = 'N/A';
+    }
+
+    if (!document.getElementById('memoria_ram_texto').value && document.getElementById('memoria_ram_gb').value) {
+      document.getElementById('memoria_ram_texto').value = document.getElementById('memoria_ram_gb').value + ' GB';
+    }
+
+    const empresa = document.getElementById('empresa_grupo').value;
+    if (empresa) {
+      cargarCecos(empresa, p.centro_de_costo || '');
+    }
+
+    syncLocationFromProject();
+    applyApplicabilityDefaults(true);
+    updateFieldStates();
+    updateEvidenceStatus();
+  }
+
+  function renderPreview(rows) {
+    const section = document.getElementById('previewSection');
+    const table = document.getElementById('previewTable');
+
+    table.innerHTML = '';
+
+    const header = document.createElement('tr');
+    header.innerHTML = '<th>Campo</th><th>Valor detectado</th>';
+    table.appendChild(header);
+
+    rows.forEach(function(row) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + escapeHtml(row[0] || '') + '</td><td>' + escapeHtml(row[1] || '') + '</td>';
+      table.appendChild(tr);
+    });
+
+    section.style.display = 'block';
+  }
+
+  function renderPreviewFromPayload(p) {
+    const rows = [
+      ['Serie / IMEI', p.serie_service_tag],
+      ['Hostname', p.hostname],
+      ['Usuario', p.usuario_asignado],
+      ['Procesador', p.procesador],
+      ['RAM', p.memoria_ram_texto || p.memoria_ram_gb],
+      ['Almacenamiento', p.almacenamiento],
+      ['MAC', p.direccion_mac],
+      ['Sistema operativo', p.sistema_operativo],
+      ['Software o correo', p.software_o_correo]
+    ];
+
+    renderPreview(rows);
+  }
+
+  function buscarDni(force) {
+    const dni = document.getElementById('dni_usuario').value.trim();
+    const lookupButton = document.getElementById('dniLookupButton');
+    if (!dni) return;
+
+    if (!/^\d{8}$/.test(dni)) {
+      setLookupStatus('err', 'El DNI debe tener 8 dígitos.');
+      showStatus('loadStatus', 'err', 'El DNI debe tener 8 dígitos.');
+      return;
+    }
+
+    setLookupStatus('loading', 'Buscando en la base de datos de personal...');
+    showStatus('loadStatus', 'warn', 'Buscando DNI en base de personal...');
+    setButtonLoading(lookupButton, true, 'Procesando...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        setButtonLoading(lookupButton, false);
+        if (!res.ok) {
+          setLookupStatus('err', res.message || 'DNI no encontrado.');
+          showStatus('loadStatus', 'err', res.message);
+          return;
+        }
+
+        const detectedCompany = canonicalCompany(res.empresa_grupo);
+        document.getElementById('empresa_grupo').value = detectedCompany || '';
+        document.getElementById('usuario_asignado').value = res.usuario_asignado || '';
+        document.getElementById('cargo_usuario').value = res.cargo_usuario || '';
+        document.getElementById('area_usuario').value = res.area_usuario || '';
+        document.getElementById('proyecto_sede').value = res.proyecto_sede || '';
+
+        cargarCecos(detectedCompany || res.empresa_grupo, res.centro_de_costo || '');
+        syncLocationFromProject();
+        updateFieldStates();
+        updateEvidenceStatus();
+        markFieldsJustFilled([
+          'empresa_grupo',
+          'usuario_asignado',
+          'cargo_usuario',
+          'area_usuario',
+          'proyecto_sede',
+          'centro_de_costo'
+        ]);
+        setLookupStatus('ok', 'Personal encontrado y datos completados.');
+        showStatus('loadStatus', 'ok', 'DNI encontrado. Datos personales y administrativos autocompletados.');
+      })
+      .withFailureHandler(function(err) {
+        setButtonLoading(lookupButton, false);
+        setLookupStatus('err', err.message || String(err));
+        showStatus('loadStatus', 'err', err.message || String(err));
+      })
+      .lookupPersonByDni(dni);
+  }
+
+  function setLookupStatus(type, message) {
+    const el = document.getElementById('dniLookupStatus');
+    if (!el) return;
+
+    el.className = 'lookup-status ' + type;
+    el.textContent = message || '';
+  }
+
+  function markFieldsJustFilled(ids) {
+    (ids || []).forEach(function(id) {
+      const field = document.getElementById(id);
+      const wrapper = field ? field.closest('.field') : null;
+      if (!wrapper) return;
+
+      wrapper.classList.remove('field-lookup-fill');
+      void wrapper.offsetWidth;
+      wrapper.classList.add('field-lookup-fill');
+    });
+  }
+
+  function canonicalCompany(value) {
+    const text = upperValue(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+    if (!text) return '';
+    if (text.indexOf('GOYDEL') !== -1) return 'GOYDEL';
+    if (text.indexOf('TDEM') !== -1) return 'TDEM';
+    if (text.indexOf('METRIN') !== -1) return 'METRIN';
+    if (text.indexOf('PERSONAL') !== -1) return 'PERSONAL';
+    return text;
+  }
+
+  function cargarCecos(empresa, selectedValue) {
+    empresa = canonicalCompany(empresa) || empresa;
+    if (!empresa) return;
+
+    showStatus('loadStatus', 'warn', 'Cargando CECO para ' + empresa + '...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res.ok) {
+          showStatus('loadStatus', 'err', res.message || 'No se pudo cargar CECO.');
+          return;
+        }
+
+        const select = document.getElementById('centro_de_costo');
+        select.innerHTML = '<option value="">Seleccionar CECO</option>';
+
+        res.items.forEach(function(item) {
+          const opt = document.createElement('option');
+          opt.value = item.ceco;
+          opt.textContent = item.ceco + ' - ' + item.nombre;
+          opt.dataset.proyecto = item.nombre;
+          select.appendChild(opt);
+        });
+
+        if (selectedValue) {
+          select.value = selectedValue;
+        }
+
+        syncProjectFromCeco();
+        updateFieldStates();
+        showStatus('loadStatus', 'ok', 'CECO actualizado.');
+      })
+      .withFailureHandler(function(err) {
+        showStatus('loadStatus', 'err', err.message || String(err));
+      })
+      .getCecoList(empresa);
+  }
+
+  function syncProjectFromCeco() {
+    const select = document.getElementById('centro_de_costo');
+    const project = document.getElementById('proyecto_sede');
+    const selected = select.options[select.selectedIndex];
+
+    if (selected && selected.dataset.proyecto && !project.value.trim()) {
+      project.value = selected.dataset.proyecto;
+    }
+
+    syncLocationFromProject();
+    updateFieldStates();
+    updateEvidenceStatus();
+  }
+
+  function syncLocationFromProject() {
+    document.getElementById('ubicacion_fisica').value = document.getElementById('proyecto_sede').value.trim();
+  }
+
+  async function saveRecord() {
+    const saveButton = document.getElementById('saveRecordButton');
+    applyApplicabilityDefaults(true);
+    const form = document.getElementById('assetForm');
+    const data = prepareDataForSave(Object.assign({}, currentPayload, formToObject(form)));
+
+    const clientError = validateClientRecord(data);
+    if (clientError) {
+      showStatus('saveStatus', 'err', clientError);
+      return;
+    }
+
+    const missing = getMissingOfficialFields(false);
+    if (missing.length) {
+      const msg = 'Hay ' + missing.length + ' campos necesarios del F-TIC-05 pendientes. Se guardará como registro INCOMPLETO.\n\n' +
+        missing.slice(0, 8).map(function(id) { return '- ' + FIELD_LABELS[id]; }).join('\n') +
+        (missing.length > 8 ? '\n- ...' : '') +
+        '\n\n¿Deseas continuar?';
+
+      if (!confirm(msg)) {
+        highlightMissingOfficialFields(true);
+        return;
+      }
+    }
+
+    if (!confirm('Confirmar guardado en F-TIC-05 y MC-F-TIC-05. ¿Continuar?')) {
+      return;
+    }
+
+    setButtonLoading(saveButton, true, 'Procesando...');
+
+    try {
+      data.evidence_uploads = await collectEvidenceUploads();
+    } catch (err) {
+      setButtonLoading(saveButton, false);
+      showStatus('saveStatus', 'err', err.message || String(err));
+      return;
+    }
+
+    showStatus('saveStatus', 'warn', 'Guardando en F-TIC-05 y MC-F-TIC-05, y procesando documentación...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        setButtonLoading(saveButton, false);
+        if (!res.ok) {
+          showStatus('saveStatus', 'err', res.message || 'No se pudo guardar.');
+          return;
+        }
+
+        let msg =
+          'Registro procesado correctamente.\n\n' +
+          'ID activo: ' + res.id_activo + '\n' +
+          'MC-F-TIC-05: ' + res.action_master + ' en fila ' + res.master_row + '\n' +
+          'F-TIC-05: ' + res.action_auditor + ' en fila ' + res.auditor_row;
+
+        if (res.evidence && res.evidence.folder_url) {
+          msg += '\n\nCarpeta documental:\n' + res.evidence.folder_url;
+        }
+
+        if (res.evidence && res.evidence.audit_txt && res.evidence.audit_txt.file_url) {
+          msg += '\n\nTXT registrado en Drive:\n' + res.evidence.audit_txt.file_url;
+        }
+
+        if (res.evidence && res.evidence.copied && res.evidence.copied.length) {
+          msg += '\n\nDocumentos procesados: ' + res.evidence.copied.length;
+        }
+
+        showStatus('saveStatus', 'ok', msg);
+        loadInventoryTable();
+      })
+      .withFailureHandler(function(err) {
+        setButtonLoading(saveButton, false);
+        showStatus('saveStatus', 'err', err.message || String(err));
+      })
+      .saveInventoryRecord(data);
+  }
+
+  function collectEvidenceUploads() {
+    const readers = EVIDENCE_DOCUMENT_FIELDS.map(function(fieldId) {
+      const input = document.getElementById('upload_' + fieldId);
+      if (!input || !input.files || !input.files[0]) return Promise.resolve(null);
+
+      const file = input.files[0];
+      return new Promise(function(resolve, reject) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const result = String(e.target.result || '');
+          const base64 = result.indexOf(',') !== -1 ? result.split(',')[1] : '';
+          resolve({
+            field: fieldId,
+            label: EVIDENCE_UPLOAD_LABELS[fieldId] || fieldId,
+            name: file.name,
+            mimeType: file.type || 'application/octet-stream',
+            base64: base64
+          });
+        };
+        reader.onerror = function() {
+          reject(new Error('No se pudo leer el archivo: ' + file.name));
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    return Promise.all(readers).then(function(items) {
+      return items.filter(Boolean);
+    });
+  }
+
+  function prepareDataForSave(data) {
+    const prepared = data || {};
+    prepared.tipo_activo = canonicalAssetType(prepared.tipo_activo) || 'PC-PORTÁTIL';
+    prepared.estado_registro = upperValue(prepared.estado_registro) || 'ACTIVO';
+    prepared.estado_operativo = upperValue(prepared.estado_operativo) || 'OPERATIVO';
+    prepared.condicion = upperValue(prepared.condicion) || 'BUENO';
+    prepared.ubicacion_fisica = document.getElementById('ubicacion_fisica').value || prepared.proyecto_sede || '';
+    prepared.fecha_entrega = normalizeDateText(prepared.fecha_entrega);
+
+    if (!isManualMode() && cachedTxt.processed && cachedTxt.content) {
+      prepared.audit_txt_name = cachedTxt.name;
+      prepared.audit_txt_content = cachedTxt.content;
+    }
+
+    const preserveCase = [
+      'link_acta_entrega_f_tic_04',
+      'link_checklist_f_tic_02',
+      'link_checklist_f_tic_03',
+      'link_informe_mtto_f_tic_11',
+      'link_factura_compra',
+      'url_evidencia_foto',
+      'url_evidencia_adicional',
+      'audit_txt_content'
+    ];
+
+    Object.keys(prepared).forEach(function(key) {
+      if (preserveCase.indexOf(key) !== -1) return;
+      if (key === 'software_o_correo' && String(prepared[key] || '').indexOf('@') !== -1) return;
+      prepared[key] = upperValue(prepared[key]);
+    });
+
+    return prepared;
+  }
+
+  function validateClientRecord(data) {
+    const tipo = canonicalAssetType(data.tipo_activo);
+    if (!tipo || ASSET_TYPES.indexOf(tipo) === -1) {
+      return 'Tipo de hardware no válido. Usa solo: ' + ASSET_TYPES.join(', ') + '.';
+    }
+
+    if (isManualMode() && isComputerType(tipo)) {
+      return 'Para PC-PORTÁTIL y PC-ESCRITORIO se debe usar TXT DE AUDITORÍA WINDOWS.';
+    }
+
+    if (!isManualMode() && !cachedTxt.processed && !data.nombre_archivo) {
+      return 'Primero sube el TXT y presiona PROCESAR.';
+    }
+
+    const required = [
+      ['empresa_grupo', 'Empresa'],
+      ['tipo_activo', 'Tipo de hardware'],
+      ['marca', 'Marca'],
+      ['modelo', 'Modelo'],
+      ['serie_service_tag', 'Número de serie o IMEI'],
+      ['usuario_asignado', 'Usuario asignado'],
+      ['proyecto_sede', 'Proyecto / sede'],
+      ['centro_de_costo', 'CECO'],
+      ['estado_operativo', 'Estado operativo'],
+      ['condicion', 'Condición']
+    ];
+
+    const missing = required
+      .filter(function(item) { return !String(data[item[0]] || '').trim(); })
+      .map(function(item) { return item[1]; });
+
+    if (missing.length) {
+      return 'Faltan campos base obligatorios: ' + missing.join(', ');
+    }
+
+    if (data.dni_usuario && !/^\d{8}$/.test(String(data.dni_usuario).trim())) {
+      return 'El DNI debe tener 8 dígitos.';
+    }
+
+    return '';
+  }
+
+  function prepareFieldWrappers() {
+    VISUAL_FIELD_IDS.forEach(function(id) {
+      const field = document.getElementById(id);
+      if (!field || field.type === 'hidden') return;
+
+      const wrapper = field.closest('div');
+      if (wrapper) wrapper.classList.add('field');
+    });
+  }
+
+  function initAutofillGuards() {
+    const form = document.getElementById('assetForm');
+    if (form) form.setAttribute('autocomplete', 'off');
+
+    document.querySelectorAll('input, select, textarea').forEach(function(el) {
+      el.setAttribute('autocomplete', 'off');
+      el.setAttribute('autocorrect', 'off');
+      el.setAttribute('autocapitalize', 'off');
+      el.setAttribute('spellcheck', 'false');
+    });
+  }
+
+  function initFormListeners() {
+    const form = document.getElementById('assetForm');
+
+    Array.from(form.elements).forEach(function(el) {
+      if (!el.name || el.type === 'hidden') return;
+
+      el.addEventListener('change', function() {
+        normalizeElementValue(el);
+        if (el.id === 'memoria_ram_texto') syncRamGb();
+        applyApplicabilityDefaults(false);
+        updateFieldStates();
+        updateEvidenceStatus();
+      });
+
+      if (EVIDENCE_STATUS_FIELDS.indexOf(el.id) !== -1) {
+        el.addEventListener('input', updateEvidenceStatus);
+      }
+
+      el.addEventListener('blur', function() {
+        normalizeElementValue(el);
+        applyApplicabilityDefaults(false);
+        updateFieldStates();
+        updateEvidenceStatus();
+      });
+    });
+
+    document.querySelectorAll('.evidence-file').forEach(function(input) {
+      input.addEventListener('change', updateEvidenceStatus);
+    });
+  }
+
+  function updateEvidenceStatus() {
+    let completed = 0;
+    const total = EVIDENCE_DOCUMENT_FIELDS.length;
+
+    EVIDENCE_STATUS_FIELDS.forEach(function(fieldId) {
+      const field = document.getElementById(fieldId);
+      const card = document.querySelector('[data-evidence-field="' + fieldId + '"]');
+      if (!field || !card) return;
+
+      const badge = card.querySelector('.evidence-badge');
+      const fileInput = document.getElementById('upload_' + fieldId);
+      const value = String(field.value || '').trim();
+      const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+      const required = card.dataset.required === 'true';
+      const isDocument = EVIDENCE_DOCUMENT_FIELDS.indexOf(fieldId) !== -1;
+
+      card.classList.remove('completed', 'missing', 'optional', 'review');
+
+      let state = 'optional';
+      let label = 'Opcional';
+
+      if (isDocument) {
+        const uploadState = document.getElementById('state_' + fieldId);
+
+        if (hasFile) {
+          state = 'completed';
+          label = 'Cargado';
+          completed += 1;
+          if (uploadState) uploadState.textContent = 'Archivo cargado: ' + fileInput.files[0].name;
+        } else if (value && !isNaValue(value)) {
+          state = 'completed';
+          label = 'Completado';
+          completed += 1;
+          if (uploadState) uploadState.textContent = 'URL/código cargado';
+        } else if (required && isNaValue(value)) {
+          state = 'review';
+          label = 'Por revisar';
+          if (uploadState) uploadState.textContent = 'No aplica';
+        } else if (required) {
+          state = 'missing';
+          label = 'Pendiente';
+          if (uploadState) uploadState.textContent = 'Pendiente';
+        } else {
+          state = 'optional';
+          label = isNaValue(value) ? 'No aplica' : 'Opcional';
+          if (uploadState) uploadState.textContent = isNaValue(value) ? 'No aplica' : 'Pendiente';
+        }
+      } else if (fieldId === 'faltan_accesorios') {
+        if (value === 'SI') {
+          state = 'review';
+          label = 'Por revisar';
+        } else if (value === 'NO') {
+          state = 'completed';
+          label = 'Completado';
+        } else {
+          state = 'optional';
+          label = 'No aplica';
+        }
+      } else if (fieldId === 'observaciones') {
+        if (value && !isNaValue(value)) {
+          state = 'review';
+          label = 'Por revisar';
+        } else {
+          state = 'optional';
+          label = 'No aplica';
+        }
+      }
+
+      card.classList.add(state);
+      if (badge) badge.textContent = label;
+    });
+
+    const counter = document.getElementById('evidenceCounter');
+    if (counter) {
+      counter.textContent = 'Evidencias completadas: ' + completed + ' / ' + total;
+    }
+  }
+
+  function normalizeElementValue(el) {
+    if (!el || el.tagName === 'SELECT') return;
+    if (el.id === 'software_o_correo' && el.value.indexOf('@') !== -1) return;
+    if (el.id.indexOf('link_') === 0 || el.id.indexOf('url_') === 0) return;
+
+    el.value = upperValue(el.value);
+  }
+
+  function applyApplicabilityDefaults(updateFields) {
+    const type = canonicalAssetType(document.getElementById('tipo_activo').value) || 'PC-PORTÁTIL';
+
+    Object.keys(TECH_RULES).forEach(function(fieldId) {
+      const field = document.getElementById(fieldId);
+      if (!field) return;
+
+      const rule = getFieldRule(fieldId, type);
+      const wrapper = field.closest('.field');
+      if (wrapper) wrapper.classList.toggle('field-hidden', rule === 'na');
+
+      if (rule === 'na') {
+        if (updateFields) field.value = 'N/A';
+        field.disabled = true;
+        return;
+      }
+
+      field.disabled = false;
+      if (rule === 'required' && updateFields && isNaValue(field.value) && !requiredAllowsNa(fieldId)) {
+        field.value = '';
+      }
+
+      if (rule === 'optional' && updateFields && !String(field.value || '').trim()) {
+        field.value = 'N/A';
+      }
+    });
+
+    if (updateFields && !document.getElementById('faltan_accesorios').value) {
+      document.getElementById('faltan_accesorios').value = 'NO';
+    }
+
+    if (updateFields && !document.getElementById('observaciones').value.trim()) {
+      document.getElementById('observaciones').value = 'N/A';
+    }
+
+    syncLocationFromProject();
+  }
+
+  function updateFieldStates() {
+    const type = canonicalAssetType(document.getElementById('tipo_activo').value) || 'PC-PORTÁTIL';
+
+    VISUAL_FIELD_IDS.forEach(function(id) {
+      const field = document.getElementById(id);
+      if (!field || field.type === 'hidden') return;
+
+      const wrapper = field.closest('.field');
+      if (!wrapper) return;
+
+      wrapper.classList.remove('field-missing', 'field-complete', 'field-na');
+
+      const rule = getFieldRule(id, type);
+      const value = String(field.value || '').trim();
+
+      if (rule === 'na' || (rule === 'optional' && (!value || isNaValue(value)))) {
+        wrapper.classList.add('field-na');
+        return;
+      }
+
+      if (!value || (rule === 'required' && isNaValue(value) && !requiredAllowsNa(id))) {
+        wrapper.classList.add('field-missing');
+        return;
+      }
+
+      wrapper.classList.add('field-complete');
+    });
+  }
+
+  function clearRegularizationHighlights() {
+    document.querySelectorAll('.field-attention').forEach(function(el) {
+      el.classList.remove('field-attention');
+    });
+  }
+
+  function highlightMissingOfficialFields(scrollToFirst) {
+    clearRegularizationHighlights();
+
+    const missing = getMissingOfficialFields(false);
+    missing.forEach(function(id) {
+      const field = document.getElementById(id);
+      const wrapper = field ? field.closest('.field') : null;
+      if (wrapper) wrapper.classList.add('field-attention');
+    });
+
+    if (scrollToFirst && missing.length) {
+      const first = document.getElementById(missing[0]);
+      if (first) {
+        first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        try { first.focus({ preventScroll: true }); } catch (e) {}
+      }
+    }
+
+    if (missing.length) {
+      showStatus('loadStatus', 'warn', 'Campos F-TIC-05 pendientes: ' + missing.length);
+    }
+  }
+
+  function getMissingOfficialFields(includeId) {
+    const type = canonicalAssetType(document.getElementById('tipo_activo').value) || 'PC-PORTÁTIL';
+    const missing = [];
+
+    OFFICIAL_FIELD_IDS.forEach(function(id) {
+      if (!includeId && id === 'id_activo') return;
+      if (id === 'ubicacion_fisica') return;
+
+      const rule = getFieldRule(id, type);
+      if (rule !== 'required') return;
+
+      const field = document.getElementById(id);
+      if (!field) return;
+
+      const value = String(field.value || '').trim();
+      if (!value || (isNaValue(value) && !requiredAllowsNa(id))) missing.push(id);
+    });
+
+    return missing;
+  }
+
+  function requiredAllowsNa(fieldId) {
+    if (fieldId === 'faltan_accesorios' || fieldId === 'observaciones') return true;
+
+    if (fieldId === 'fecha_entrega') {
+      const assigned = upperValue(document.getElementById('usuario_asignado').value);
+      return assigned === 'ALMACEN TIC' || assigned === 'STOCK' || assigned === 'STOCK DISPONIBLE';
+    }
+
+    return false;
+  }
+
+  function getFieldRule(fieldId, type) {
+    if (fieldId === 'id_activo') return 'optional';
+    if (fieldId === 'empresa_grupo' || fieldId === 'proyecto_sede') return 'required';
+    if (ALWAYS_REQUIRED.indexOf(fieldId) !== -1) return 'required';
+    if (fieldId === 'ubicacion_fisica') return 'required';
+    if (TECH_RULES[fieldId]) return TECH_RULES[fieldId][type] || 'optional';
+    return 'optional';
+  }
+
+  function syncRamGb() {
+    const ramText = document.getElementById('memoria_ram_texto').value;
+    const match = String(ramText || '').match(/(\d+(?:[.,]\d+)?)/);
+    document.getElementById('memoria_ram_gb').value = match ? match[1].replace(',', '.') : '';
+  }
+
+  function formToObject(form) {
+    const obj = {};
+
+    Array.from(form.elements).forEach(function(el) {
+      if (!el.name) return;
+      obj[el.name] = el.value;
+    });
+
+    return obj;
+  }
+
+  function clearForm() {
+    if (!confirm('Se borrarán los datos del formulario y la caché del TXT. ¿Confirmar?')) {
+      return;
+    }
+
+    document.getElementById('assetForm').reset();
+    cachedTxt = { name: '', content: '', processed: false };
+    currentPayload = {};
+
+    document.getElementById('txtFile').value = '';
+    document.getElementById('txtFileLabel').textContent = 'O hacer clic para seleccionar el archivo generado por PowerShell.';
+    document.getElementById('dropZone').classList.remove('has-file');
+    document.getElementById('processTxtButton').disabled = true;
+    document.getElementById('removeTxtButton').disabled = true;
+    document.getElementById('previewSection').style.display = 'none';
+    document.getElementById('previewTable').innerHTML = '';
+    document.getElementById('centro_de_costo').innerHTML = '<option value="">Seleccionar CECO</option>';
+
+    fillForm({});
+    clearRegularizationHighlights();
+    showStatus('loadStatus', 'warn', 'Formulario limpiado.');
+    document.getElementById('saveStatus').className = 'status';
+    document.getElementById('saveStatus').textContent = '';
+  }
+</script>

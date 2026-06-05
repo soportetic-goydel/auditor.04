@@ -1,0 +1,23 @@
+  <section id="viewPeople" class="view">
+    <div class="form-card">
+      <div class="section-title">LISTADO DE PERSONAL</div>
+
+      <p class="note">
+        Listado de personal leído desde la base oficial del grupo económico para validación administrativa.
+      </p>
+
+      <div class="toolbar">
+        <button type="button" onclick="loadPersonnelTable()">Actualizar personal</button>
+        <input id="personnelSearch" placeholder="Buscar por DNI, nombre, cargo, proyecto o empresa..." oninput="filterPersonnelTable()">
+      </div>
+
+      <div class="crud-wrap">
+        <table class="crud-table" id="personnelTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="personnelStatus" class="status"></div>
+    </div>
+  </section>

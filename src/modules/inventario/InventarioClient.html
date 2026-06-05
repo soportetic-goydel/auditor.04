@@ -1,0 +1,186 @@
+<script>
+  function loadInventoryTable() {
+    const refreshButton = document.getElementById('refreshInventoryButton');
+    showStatus('tableStatus', 'warn', 'Cargando F-TIC-05...');
+    setButtonLoading(refreshButton, true, 'Procesando...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        setButtonLoading(refreshButton, false);
+        if (!res.ok) {
+          showStatus('tableStatus', 'err', res.message || 'No se pudo cargar la tabla.');
+          return;
+        }
+
+        tableCache = res.rows || [];
+        tableHeaders = res.headers || [];
+        populateInventoryFilters();
+        filterTable();
+        showStatus('tableStatus', 'ok', 'Registros cargados: ' + tableCache.length);
+      })
+      .withFailureHandler(function(err) {
+        setButtonLoading(refreshButton, false);
+        showStatus('tableStatus', 'err', err.message || String(err));
+      })
+      .getInventoryTable();
+  }
+
+  function renderInventoryTable(rows) {
+    const thead = document.querySelector('#inventoryTable thead');
+    const tbody = document.querySelector('#inventoryTable tbody');
+    const headers = tableHeaders.length ? tableHeaders : [
+      'ID DE ACTIVO',
+      'TIPO DE EQUIPO',
+      'MARCA',
+      'MODELO',
+      'NÚMERO DE SERIE O IMEI',
+      'NOMBRE DEL DISPOSITIVO',
+      'USUARIO ASIGNADO',
+      'CECO'
+    ];
+    const serialHeader = 'NÚMERO DE SERIE O IMEI';
+    const restHeaders = headers.filter(function(header) {
+      return header !== serialHeader;
+    });
+
+    thead.innerHTML = '<tr>' +
+      '<th class="sticky-registro">REGISTRO</th>' +
+      '<th class="sticky-action">ACCIÓN</th>' +
+      '<th class="sticky-serie">' + escapeHtml(serialHeader) + '</th>' +
+      restHeaders.map(function(header) { return '<th>' + escapeHtml(header) + '</th>'; }).join('') +
+      '</tr>';
+    tbody.innerHTML = '';
+
+    rows.forEach(function(row) {
+      const tr = document.createElement('tr');
+      const badgeClass = row.status === 'COMPLETO' ? 'ok' : 'bad';
+      const values = row.values || {};
+      const serie = row.serie || values['NÚMERO DE SERIE O IMEI'] || '';
+
+      tr.innerHTML = `
+        <td class="sticky-registro"><span class="badge ${badgeClass}">${row.status}</span></td>
+        <td class="sticky-action">
+          <button type="button" class="btn-small" onclick="regularizeRecord('${escapeAttr(serie)}', this)">Regularizar</button>
+        </td>
+        <td class="sticky-serie">${escapeHtml(serie || '')}</td>
+      ` + restHeaders.map(function(header) {
+        return '<td>' + escapeHtml(values[header] || '') + '</td>';
+      }).join('');
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function filterTable() {
+    const q = document.getElementById('tableSearch').value.toLowerCase().trim();
+    const ceco = document.getElementById('filterCeco').value;
+    const tipo = document.getElementById('filterTipo').value;
+    const estado = document.getElementById('filterEstado').value;
+    const empresa = document.getElementById('filterEmpresa').value;
+
+    const filtered = tableCache.filter(function(row) {
+      const values = row.values || {};
+      const matchesQuery = !q || Object.values(values).concat([row.empresa || '']).some(function(v) {
+        return String(v || '').toLowerCase().includes(q);
+      });
+
+      return matchesQuery &&
+        matchesFilter(getInventoryFilterValue(row, ['CECO']), ceco) &&
+        matchesFilter(getInventoryFilterValue(row, ['TIPO DE EQUIPO', 'TIPO DE HARDWARE']), tipo) &&
+        matchesFilter(getInventoryFilterValue(row, ['ESTADO OPERATIVO']), estado) &&
+        matchesFilter(row.empresa || getInventoryFilterValue(row, ['EMPRESA', 'EMPRESA DEL GRUPO']), empresa);
+    });
+
+    renderInventoryTable(filtered);
+  }
+
+  function populateInventoryFilters() {
+    populateSelectOptions('filterCeco', uniqueInventoryValues(['CECO']), 'Todos');
+    populateSelectOptions('filterTipo', uniqueInventoryValues(['TIPO DE EQUIPO', 'TIPO DE HARDWARE']), 'Todos');
+    populateSelectOptions('filterEstado', uniqueInventoryValues(['ESTADO OPERATIVO']), 'Todos');
+    populateSelectOptions('filterEmpresa', uniqueInventoryValues(['EMPRESA', 'EMPRESA DEL GRUPO'], true), 'Todas');
+  }
+
+  function uniqueInventoryValues(headers, includeEmpresaFallback) {
+    const values = {};
+
+    tableCache.forEach(function(row) {
+      const value = includeEmpresaFallback
+        ? row.empresa || getInventoryFilterValue(row, headers)
+        : getInventoryFilterValue(row, headers);
+      if (value) values[value] = true;
+    });
+
+    return Object.keys(values).sort();
+  }
+
+  function getInventoryFilterValue(row, headers) {
+    const values = row.values || {};
+    for (let i = 0; i < headers.length; i++) {
+      const value = String(values[headers[i]] || '').trim();
+      if (value) return value;
+    }
+    return '';
+  }
+
+  function matchesFilter(value, filterValue) {
+    if (!filterValue) return true;
+    return String(value || '') === filterValue;
+  }
+
+  function populateSelectOptions(id, values, defaultText) {
+    const select = document.getElementById(id);
+    const current = select.value;
+    select.innerHTML = '<option value="">' + defaultText + '</option>';
+
+    values.forEach(function(value) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = value;
+      select.appendChild(option);
+    });
+
+    if (current && values.indexOf(current) !== -1) {
+      select.value = current;
+    }
+  }
+
+  function clearInventoryFilters() {
+    document.getElementById('tableSearch').value = '';
+    document.getElementById('filterCeco').value = '';
+    document.getElementById('filterTipo').value = '';
+    document.getElementById('filterEstado').value = '';
+    document.getElementById('filterEmpresa').value = '';
+    filterTable();
+  }
+  function regularizeRecord(serie, button) {
+    if (!serie) {
+      showStatus('tableStatus', 'err', 'Este registro no tiene serie para regularizar.');
+      return;
+    }
+
+    setButtonLoading(button, true, 'Procesando...');
+    showView('viewForm');
+    showStatus('loadStatus', 'warn', 'Cargando registro para regularización...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        setButtonLoading(button, false);
+        if (!res.ok) {
+          showStatus('loadStatus', 'err', res.message || 'No se pudo cargar el registro.');
+          return;
+        }
+
+        currentPayload = res.payload || {};
+        fillForm(currentPayload);
+        renderPreviewFromPayload(currentPayload);
+        setTimeout(function() { highlightMissingOfficialFields(true); }, 150);
+        showStatus('loadStatus', 'ok', 'Registro cargado para regularización desde: ' + res.source);
+      })
+      .withFailureHandler(function(err) {
+        setButtonLoading(button, false);
+        showStatus('loadStatus', 'err', err.message || String(err));
+      })
+      .getInventoryRecordBySerie(serie);
+  }
+</script>

@@ -1,0 +1,54 @@
+  <section id="viewTable" class="view active">
+    <div class="form-card">
+      <div class="section-title">INVENTARIO (F-TIC-05)</div>
+
+      <div class="toolbar">
+        <button type="button" id="refreshInventoryButton" onclick="loadInventoryTable()">Actualizar tabla</button>
+        <input id="tableSearch" placeholder="Buscar por serie, usuario, hostname, CECO..." oninput="filterTable()">
+      </div>
+
+      <div class="filter-grid">
+        <div>
+          <label>CECO</label>
+          <select id="filterCeco" onchange="filterTable()">
+            <option value="">Todos</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Tipo de activo / hardware</label>
+          <select id="filterTipo" onchange="filterTable()">
+            <option value="">Todos</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Estado operativo</label>
+          <select id="filterEstado" onchange="filterTable()">
+            <option value="">Todos</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Empresa</label>
+          <select id="filterEmpresa" onchange="filterTable()">
+            <option value="">Todas</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Filtros</label>
+          <button type="button" class="secondary" onclick="clearInventoryFilters()">Limpiar filtros</button>
+        </div>
+      </div>
+
+      <div class="crud-wrap">
+        <table class="crud-table" id="inventoryTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="tableStatus" class="status"></div>
+    </div>
+  </section>

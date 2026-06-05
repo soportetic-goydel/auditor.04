@@ -1,0 +1,38 @@
+  <section id="viewGenerate" class="view">
+    <div class="form-card">
+      <div class="section-title">F-TIC-04</div>
+
+      <div class="module-placeholder">
+        <p class="note">
+          <strong>Acta de entrega o devolución de equipo informático VS01.</strong><br>
+          Genera el acta F-TIC-04 a partir de un activo ya registrado en MC-F-TIC-05 o F-TIC-05.
+        </p>
+
+        <div class="toolbar">
+          <input id="generateAssetSearch" placeholder="Buscar por serie, ID de activo, hostname o usuario asignado">
+          <button type="button" id="searchFtic04AssetButton" onclick="searchGeneratorAssets()">Buscar activo</button>
+        </div>
+
+        <div class="crud-wrap">
+          <table class="crud-table" id="generateResultsTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div id="generatePreview" class="note hidden"></div>
+
+        <div class="action-row">
+          <button type="button" id="generateFtic04Button" class="success" onclick="generateFtic04Document()" disabled>Generar F-TIC-04</button>
+          <a id="generatedFtic04DocumentLink" class="hidden" href="#" target="_blank" rel="noopener">
+            <button type="button">Abrir documento</button>
+          </a>
+          <a id="generatedFtic04PdfLink" class="hidden" href="#" target="_blank" rel="noopener">
+            <button type="button">Abrir PDF</button>
+          </a>
+        </div>
+
+        <div id="generateStatus" class="status"></div>
+      </div>
+    </div>
+  </section>

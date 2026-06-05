@@ -1,0 +1,27 @@
+<script>
+  function loadLogTable() {
+    showStatus('logStatus', 'warn', 'Cargando LOG...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res.ok) {
+          showStatus('logStatus', 'err', res.message || 'No se pudo cargar el LOG.');
+          return;
+        }
+
+        logCache = res.rows || [];
+        logHeaders = res.headers || [];
+        renderSimpleTable('logTable', logHeaders, logCache);
+        showStatus('logStatus', 'ok', 'LOG actualizado.');
+      })
+      .withFailureHandler(function(err) {
+        showStatus('logStatus', 'err', err.message || String(err));
+      })
+      .getImportLogTable();
+  }
+
+  function filterLogTable() {
+    const q = document.getElementById('logSearch').value.toLowerCase().trim();
+    renderSimpleTable('logTable', logHeaders, filterRowsByQuery(logCache, q));
+  }
+</script>

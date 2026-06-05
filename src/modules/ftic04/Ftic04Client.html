@@ -1,0 +1,145 @@
+<script>
+  function searchGeneratorAssets() {
+    const query = document.getElementById('generateAssetSearch').value.trim();
+    const searchButton = document.getElementById('searchFtic04AssetButton');
+
+    if (!query) {
+      showStatus('generateStatus', 'err', 'Ingresa serie, ID de activo, hostname o usuario asignado.');
+      return;
+    }
+
+    selectedGeneratorAsset = null;
+    document.getElementById('generateFtic04Button').disabled = true;
+    document.getElementById('generatedFtic04DocumentLink').classList.add('hidden');
+    document.getElementById('generatedFtic04PdfLink').classList.add('hidden');
+    document.getElementById('generatePreview').classList.add('hidden');
+    showStatus('generateStatus', 'warn', 'Buscando activo...');
+    setButtonLoading(searchButton, true, 'Procesando...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        setButtonLoading(searchButton, false);
+        if (!res.ok) {
+          generatorAssetCache = [];
+          renderGeneratorAssetResults([]);
+          showStatus('generateStatus', 'err', res.message || 'No se pudo buscar el activo.');
+          return;
+        }
+
+        generatorAssetCache = (res.result && res.result.items) || [];
+        renderGeneratorAssetResults(generatorAssetCache);
+        showStatus('generateStatus', generatorAssetCache.length ? 'ok' : 'warn', res.message || 'Búsqueda finalizada.');
+      })
+      .withFailureHandler(function(err) {
+        setButtonLoading(searchButton, false);
+        showStatus('generateStatus', 'err', err.message || String(err));
+      })
+      .buscarActivosParaGenerarFTIC04(query);
+  }
+
+  function renderGeneratorAssetResults(items) {
+    const table = document.getElementById('generateResultsTable');
+    const thead = table.querySelector('thead');
+    const tbody = table.querySelector('tbody');
+
+    const headers = ['ACCIÓN', 'ID ACTIVO', 'SERIE / IMEI', 'TIPO HARDWARE', 'MARCA', 'MODELO', 'HOSTNAME', 'USUARIO ASIGNADO', 'CECO', 'ESTADO', 'ORIGEN'];
+    thead.innerHTML = '<tr>' + headers.map(function(header) {
+      return '<th>' + escapeHtml(header) + '</th>';
+    }).join('') + '</tr>';
+    tbody.innerHTML = '';
+
+    (items || []).forEach(function(item, index) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><button type="button" class="btn-small" onclick="selectGeneratorAsset(${index})">Seleccionar</button></td>
+        <td>${escapeHtml(item.id_activo || '')}</td>
+        <td>${escapeHtml(item.serie_service_tag || '')}</td>
+        <td>${escapeHtml(item.tipo_activo || '')}</td>
+        <td>${escapeHtml(item.marca || '')}</td>
+        <td>${escapeHtml(item.modelo || '')}</td>
+        <td>${escapeHtml(item.hostname || '')}</td>
+        <td>${escapeHtml(item.usuario_asignado || '')}</td>
+        <td>${escapeHtml(item.centro_de_costo || '')}</td>
+        <td>${escapeHtml(item.estado_operativo || '')}</td>
+        <td>${escapeHtml(item.source || '')}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function selectGeneratorAsset(index) {
+    selectedGeneratorAsset = generatorAssetCache[index] || null;
+    document.getElementById('generateFtic04Button').disabled = !selectedGeneratorAsset;
+    document.getElementById('generatedFtic04DocumentLink').classList.add('hidden');
+    document.getElementById('generatedFtic04PdfLink').classList.add('hidden');
+
+    if (!selectedGeneratorAsset) return;
+
+    const preview = document.getElementById('generatePreview');
+    preview.classList.remove('hidden');
+    preview.innerHTML =
+      '<strong>Activo seleccionado</strong><br>' +
+      'ID: ' + escapeHtml(selectedGeneratorAsset.id_activo || '-') + '<br>' +
+      'Serie / IMEI: ' + escapeHtml(selectedGeneratorAsset.serie_service_tag || '-') + '<br>' +
+      'Tipo de hardware: ' + escapeHtml(selectedGeneratorAsset.tipo_activo || '-') + '<br>' +
+      'Marca / modelo: ' + escapeHtml(joinPreviewParts([selectedGeneratorAsset.marca, selectedGeneratorAsset.modelo])) + '<br>' +
+      'Hostname: ' + escapeHtml(selectedGeneratorAsset.hostname || '-') + '<br>' +
+      'Usuario: ' + escapeHtml(selectedGeneratorAsset.usuario_asignado || '-') + '<br>' +
+      'CECO: ' + escapeHtml(selectedGeneratorAsset.centro_de_costo || '-') + '<br>' +
+      'Estado operativo: ' + escapeHtml(selectedGeneratorAsset.estado_operativo || '-') + '<br>' +
+      'Origen: ' + escapeHtml(selectedGeneratorAsset.source || '-');
+
+    showStatus('generateStatus', 'ok', 'Activo seleccionado. Ya puedes generar el F-TIC-04.');
+  }
+
+  function generateFtic04Document() {
+    if (!selectedGeneratorAsset) {
+      showStatus('generateStatus', 'err', 'Selecciona un activo antes de generar.');
+      return;
+    }
+
+    const generateButton = document.getElementById('generateFtic04Button');
+    document.getElementById('generatedFtic04DocumentLink').classList.add('hidden');
+    document.getElementById('generatedFtic04PdfLink').classList.add('hidden');
+    showStatus('generateStatus', 'warn', 'Generando F-TIC-04 desde el proyecto principal...');
+    setButtonLoading(generateButton, true, 'Procesando...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        setButtonLoading(generateButton, false);
+
+        if (!res.ok) {
+          showStatus('generateStatus', 'err', res.message || 'No se pudo generar el F-TIC-04.');
+          return;
+        }
+
+        const result = res.result || {};
+        const documentUrl = result.documentUrl || '';
+        const pdfUrl = result.pdfUrl || '';
+
+        if (documentUrl) {
+          const documentLink = document.getElementById('generatedFtic04DocumentLink');
+          documentLink.href = documentUrl;
+          documentLink.classList.remove('hidden');
+        }
+
+        if (pdfUrl) {
+          const pdfLink = document.getElementById('generatedFtic04PdfLink');
+          pdfLink.href = pdfUrl;
+          pdfLink.classList.remove('hidden');
+        }
+
+        showStatus('generateStatus', 'ok', res.message || 'F-TIC-04 generado correctamente.');
+      })
+      .withFailureHandler(function(err) {
+        setButtonLoading(generateButton, false);
+        showStatus('generateStatus', 'err', err.message || String(err));
+      })
+      .generarFTIC04DesdeActivo(selectedGeneratorAsset.id_activo || selectedGeneratorAsset.serie_service_tag);
+  }
+
+  function joinPreviewParts(parts) {
+    const text = (parts || []).filter(Boolean).join(' / ');
+    return text || '-';
+  }
+</script>

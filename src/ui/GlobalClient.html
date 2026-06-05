@@ -1,0 +1,378 @@
+<script>
+  let currentPayload = {};
+  let tableCache = [];
+  let tableHeaders = [];
+  let logCache = [];
+  let logHeaders = [];
+  let personnelCache = [];
+  let personnelHeaders = [];
+  let generatorAssetCache = [];
+  let selectedGeneratorAsset = null;
+  let cachedTxt = {
+    name: '',
+    content: '',
+    processed: false
+  };
+
+  const ASSET_TYPES = ['PC-PORTÁTIL', 'PC-ESCRITORIO', 'SMARTPHONE', 'IMPRESORA', 'ESCÁNER', 'MONITOR'];
+
+  const EVIDENCE_DOCUMENT_FIELDS = [
+    'link_acta_entrega_f_tic_04',
+    'link_informe_mtto_f_tic_11',
+    'link_checklist_f_tic_02',
+    'link_checklist_f_tic_03',
+    'link_factura_compra',
+    'url_evidencia_foto',
+    'url_evidencia_adicional'
+  ];
+
+  const EVIDENCE_UPLOAD_LABELS = {
+    link_acta_entrega_f_tic_04: 'ACTA_ENTREGA_F_TIC_04',
+    link_informe_mtto_f_tic_11: 'INFORME_MTTO_F_TIC_11',
+    link_checklist_f_tic_02: 'CHECKLIST_F_TIC_02',
+    link_checklist_f_tic_03: 'CHECKLIST_F_TIC_03',
+    link_factura_compra: 'FACTURA_COMPRA',
+    url_evidencia_foto: 'EVIDENCIA_FOTO',
+    url_evidencia_adicional: 'EVIDENCIA_ADICIONAL'
+  };
+
+  const EVIDENCE_STATUS_FIELDS = EVIDENCE_DOCUMENT_FIELDS.concat([
+    'faltan_accesorios',
+    'observaciones'
+  ]);
+
+  const OFFICIAL_FIELD_IDS = [
+    'id_activo',
+    'tipo_activo',
+    'marca',
+    'modelo',
+    'serie_service_tag',
+    'hostname',
+    'estado_operativo',
+    'condicion',
+    'ubicacion_fisica',
+    'centro_de_costo',
+    'usuario_asignado',
+    'fecha_entrega',
+    'link_acta_entrega_f_tic_04',
+    'link_informe_mtto_f_tic_11',
+    'sistema_operativo',
+    'procesador',
+    'memoria_ram_texto',
+    'almacenamiento',
+    'tarjeta_video',
+    'direccion_mac',
+    'direccion_ip',
+    'numero_movil',
+    'operador',
+    'caracteristica_especial',
+    'software_o_correo',
+    'faltan_accesorios',
+    'observaciones'
+  ];
+
+  const VISUAL_FIELD_IDS = OFFICIAL_FIELD_IDS.concat([
+    'dni_usuario',
+    'empresa_grupo',
+    'cargo_usuario',
+    'area_usuario',
+    'proyecto_sede'
+  ]);
+
+  const FIELD_LABELS = {
+    id_activo: 'ID de activo',
+    tipo_activo: 'Tipo de hardware',
+    marca: 'Marca',
+    modelo: 'Modelo',
+    serie_service_tag: 'Número de serie o IMEI',
+    hostname: 'Nombre del dispositivo',
+    estado_operativo: 'Estado operativo',
+    condicion: 'Condición',
+    ubicacion_fisica: 'Ubicación',
+    centro_de_costo: 'CECO',
+    usuario_asignado: 'Usuario asignado',
+    fecha_entrega: 'Fecha de entrega',
+    link_acta_entrega_f_tic_04: 'Acta de entrega F-TIC-04',
+    link_informe_mtto_f_tic_11: 'Informe de Mtto. F-TIC-11',
+    sistema_operativo: 'Sistema operativo',
+    procesador: 'Procesador',
+    memoria_ram_texto: 'Memoria RAM',
+    almacenamiento: 'Almacenamiento',
+    tarjeta_video: 'Tarjeta de video',
+    direccion_mac: 'Dirección MAC',
+    direccion_ip: 'Dirección IP',
+    numero_movil: 'Número móvil',
+    operador: 'Conectividad u operador',
+    caracteristica_especial: 'Característica especial',
+    software_o_correo: 'Software o correo',
+    faltan_accesorios: 'Faltan accesorios',
+    observaciones: 'Observaciones'
+  };
+
+  const TECH_RULES = {
+    hostname: {
+      'PC-PORTÁTIL': 'required',
+      'PC-ESCRITORIO': 'required',
+      SMARTPHONE: 'na',
+      IMPRESORA: 'optional',
+      'ESCÁNER': 'na',
+      MONITOR: 'na'
+    },
+    sistema_operativo: {
+      'PC-PORTÁTIL': 'required',
+      'PC-ESCRITORIO': 'required',
+      SMARTPHONE: 'required',
+      IMPRESORA: 'optional',
+      'ESCÁNER': 'na',
+      MONITOR: 'na'
+    },
+    procesador: {
+      'PC-PORTÁTIL': 'required',
+      'PC-ESCRITORIO': 'required',
+      SMARTPHONE: 'required',
+      IMPRESORA: 'na',
+      'ESCÁNER': 'na',
+      MONITOR: 'na'
+    },
+    memoria_ram_texto: {
+      'PC-PORTÁTIL': 'required',
+      'PC-ESCRITORIO': 'required',
+      SMARTPHONE: 'required',
+      IMPRESORA: 'na',
+      'ESCÁNER': 'na',
+      MONITOR: 'na'
+    },
+    almacenamiento: {
+      'PC-PORTÁTIL': 'required',
+      'PC-ESCRITORIO': 'required',
+      SMARTPHONE: 'required',
+      IMPRESORA: 'na',
+      'ESCÁNER': 'na',
+      MONITOR: 'na'
+    },
+    tarjeta_video: {
+      'PC-PORTÁTIL': 'required',
+      'PC-ESCRITORIO': 'required',
+      SMARTPHONE: 'na',
+      IMPRESORA: 'na',
+      'ESCÁNER': 'na',
+      MONITOR: 'na'
+    },
+    direccion_mac: {
+      'PC-PORTÁTIL': 'required',
+      'PC-ESCRITORIO': 'required',
+      SMARTPHONE: 'required',
+      IMPRESORA: 'optional',
+      'ESCÁNER': 'na',
+      MONITOR: 'na'
+    },
+    direccion_ip: {
+      'PC-PORTÁTIL': 'required',
+      'PC-ESCRITORIO': 'required',
+      SMARTPHONE: 'required',
+      IMPRESORA: 'optional',
+      'ESCÁNER': 'na',
+      MONITOR: 'na'
+    },
+    numero_movil: {
+      'PC-PORTÁTIL': 'na',
+      'PC-ESCRITORIO': 'na',
+      SMARTPHONE: 'required',
+      IMPRESORA: 'na',
+      'ESCÁNER': 'na',
+      MONITOR: 'na'
+    },
+    operador: {
+      'PC-PORTÁTIL': 'na',
+      'PC-ESCRITORIO': 'na',
+      SMARTPHONE: 'required',
+      IMPRESORA: 'na',
+      'ESCÁNER': 'na',
+      MONITOR: 'na'
+    },
+    caracteristica_especial: {
+      'PC-PORTÁTIL': 'optional',
+      'PC-ESCRITORIO': 'optional',
+      SMARTPHONE: 'optional',
+      IMPRESORA: 'optional',
+      'ESCÁNER': 'optional',
+      MONITOR: 'optional'
+    },
+    software_o_correo: {
+      'PC-PORTÁTIL': 'required',
+      'PC-ESCRITORIO': 'required',
+      SMARTPHONE: 'required',
+      IMPRESORA: 'na',
+      'ESCÁNER': 'na',
+      MONITOR: 'na'
+    }
+  };
+
+  const ALWAYS_REQUIRED = [
+    'tipo_activo',
+    'marca',
+    'modelo',
+    'serie_service_tag',
+    'estado_operativo',
+    'condicion',
+    'centro_de_costo',
+    'usuario_asignado',
+    'faltan_accesorios',
+    'observaciones'
+  ];
+
+  window.onload = function() {
+    prepareFieldWrappers();
+    initAutofillGuards();
+    initUploadControls();
+    initFormListeners();
+    changeRegistrationMode();
+    fillForm({});
+    updateEvidenceStatus();
+    loadInventoryTable();
+  };
+
+  function setButtonLoading(buttonOrId, loading, label) {
+    const button = typeof buttonOrId === 'string'
+      ? document.getElementById(buttonOrId)
+      : buttonOrId;
+
+    if (!button) return;
+
+    if (loading) {
+      if (!button.dataset.originalHtml) {
+        button.dataset.originalHtml = button.innerHTML;
+      }
+      button.disabled = true;
+      button.classList.add('is-loading');
+      button.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span><span>' +
+        escapeHtml(label || 'Procesando...') +
+        '</span>';
+      return;
+    }
+
+    button.disabled = false;
+    button.classList.remove('is-loading');
+    if (button.dataset.originalHtml) {
+      button.innerHTML = button.dataset.originalHtml;
+      delete button.dataset.originalHtml;
+    }
+  }
+
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
+    document.getElementById(id).classList.add('active');
+    document.getElementById('tabInventory').classList.toggle('active', id === 'viewTable');
+    document.getElementById('tabForm').classList.toggle('active', id === 'viewForm');
+    document.getElementById('tabGenerate').classList.toggle('active', id === 'viewGenerate');
+    document.getElementById('tabPeople').classList.toggle('active', id === 'viewPeople');
+    document.getElementById('tabLog').classList.toggle('active', id === 'viewLog');
+
+    if (id === 'viewLog' && !logCache.length) loadLogTable();
+    if (id === 'viewPeople' && !personnelCache.length) loadPersonnelTable();
+  }
+  function filterRowsByQuery(rows, query) {
+    if (!query) return rows;
+
+    return (rows || []).filter(function(row) {
+      return Object.values(row.values || row).some(function(value) {
+        return String(value || '').toLowerCase().includes(query);
+      });
+    });
+  }
+
+  function renderSimpleTable(tableId, headers, rows) {
+    const table = document.getElementById(tableId);
+    const thead = table.querySelector('thead');
+    const tbody = table.querySelector('tbody');
+    const visibleHeaders = headers || [];
+
+    thead.innerHTML = '<tr>' +
+      visibleHeaders.map(function(header) { return '<th>' + escapeHtml(header) + '</th>'; }).join('') +
+      '</tr>';
+    tbody.innerHTML = '';
+
+    (rows || []).forEach(function(row) {
+      const values = row.values || {};
+      const tr = document.createElement('tr');
+      tr.innerHTML = visibleHeaders.map(function(header) {
+        return '<td>' + escapeHtml(values[header] || '') + '</td>';
+      }).join('');
+      tbody.appendChild(tr);
+    });
+  }
+  function canonicalAssetType(value) {
+    const text = upperValue(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+    const aliases = {
+      'PC PORTATIL': 'PC-PORTÁTIL',
+      'PC-PORTATIL': 'PC-PORTÁTIL',
+      'LAPTOP': 'PC-PORTÁTIL',
+      'PORTATIL': 'PC-PORTÁTIL',
+      'PC ESCRITORIO': 'PC-ESCRITORIO',
+      'PC-ESCRITORIO': 'PC-ESCRITORIO',
+      'DESKTOP': 'PC-ESCRITORIO',
+      'SMARTPHONE': 'SMARTPHONE',
+      'CELULAR': 'SMARTPHONE',
+      'IMPRESORA': 'IMPRESORA',
+      'ESCANER': 'ESCÁNER',
+      'ESCÁNER': 'ESCÁNER',
+      'SCANNER': 'ESCÁNER',
+      'MONITOR': 'MONITOR'
+    };
+
+    return aliases[text] || (ASSET_TYPES.indexOf(value) !== -1 ? value : '');
+  }
+
+  function isComputerType(type) {
+    const canonical = canonicalAssetType(type);
+    return canonical === 'PC-PORTÁTIL' || canonical === 'PC-ESCRITORIO';
+  }
+
+  function isNaValue(value) {
+    const text = upperValue(value).replace(/\s+/g, '');
+    return text === 'N/A' || text === 'NA';
+  }
+
+  function upperValue(value) {
+    return String(value || '').replace(/\r?\n/g, ' ').trim().toUpperCase();
+  }
+
+  function normalizeDateText(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    if (isNaValue(text)) return 'N/A';
+
+    const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (iso) return iso[3] + '/' + iso[2] + '/' + iso[1];
+
+    const slash = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (slash) return slash[1].padStart(2, '0') + '/' + slash[2].padStart(2, '0') + '/' + slash[3];
+
+    return upperValue(text);
+  }
+
+  function showStatus(id, type, message) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = 'status ' + type;
+    el.textContent = message;
+  }
+
+  function escapeHtml(str) {
+    return String(str || '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function escapeAttr(str) {
+    return String(str || '')
+      .replaceAll('\\', '\\\\')
+      .replaceAll("'", "\\'")
+      .replaceAll('"', '&quot;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;');
+  }
+</script>

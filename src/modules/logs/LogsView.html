@@ -1,0 +1,23 @@
+  <section id="viewLog" class="view">
+    <div class="form-card">
+      <div class="section-title">LOGS</div>
+
+      <p class="note">
+        Últimas acciones registradas por la WebApp: altas, actualizaciones, errores y carpeta documental asociada.
+      </p>
+
+      <div class="toolbar">
+        <button type="button" onclick="loadLogTable()">Actualizar LOGS</button>
+        <input id="logSearch" placeholder="Buscar por ID, serie, acción, usuario o resultado..." oninput="filterLogTable()">
+      </div>
+
+      <div class="crud-wrap">
+        <table class="crud-table" id="logTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="logStatus" class="status"></div>
+    </div>
+  </section>
