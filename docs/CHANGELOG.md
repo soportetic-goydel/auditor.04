@@ -18,9 +18,17 @@ Cambios realizados:
 
 Pendiente:
 
-- Hacer `clasp push`, crear version y redeploy.
 - Ejecutar `autorizarPermisosFTIC04` en Apps Script con el usuario que despliega.
 - Probar nuevamente la generacion F-TIC-04 desde la URL `/exec` vigente.
+
+Despliegue:
+
+- `clasp push --force`: OK, 45 archivos subidos.
+- Version creada: `18`.
+- Deployment actualizado: `AKfycbyPSJorPbCYpVphDvDkqfAdAHjmq7lF-tMoh2KDc0Vr3VVX9AKMSsLvcKk5nFC8q_P7fA`.
+- Descripcion: `VS04 - soporte reautorizacion F-TIC-04`.
+- URL `/exec`: `https://script.google.com/macros/s/AKfycbyPSJorPbCYpVphDvDkqfAdAHjmq7lF-tMoh2KDc0Vr3VVX9AKMSsLvcKk5nFC8q_P7fA/exec`.
+- Rollback operativo: redeployar el mismo Deployment ID a la version `17`.
 
 ## 2026-06-04 - Onboarding local y prompt de rewind
 
