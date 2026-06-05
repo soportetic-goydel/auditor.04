@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-06-05 - Soporte de reautorizacion F-TIC-04
+
+Tipo de cambio: soporte operativo, diagnostico, UI.
+
+Contexto:
+
+- Al generar F-TIC-04, la WebApp reporta falta de permiso para `UrlFetchApp.fetch`.
+- El manifest local ya contiene `https://www.googleapis.com/auth/script.external_request`.
+- El problema probable es falta de reautorizacion del usuario que despliega o uso de un deployment sin consentimiento actualizado.
+
+Cambios realizados:
+
+- Se agrego la funcion publica `autorizarPermisosFTIC04()` para forzar/verificar autorizacion sin generar un acta real.
+- Se mejoro el mensaje del modulo F-TIC-04 cuando detecta errores de `UrlFetchApp.fetch` o `script.external_request`.
+- Se actualizo la guia tecnica y operativa con el nuevo flujo de reautorizacion.
+
+Pendiente:
+
+- Hacer `clasp push`, crear version y redeploy.
+- Ejecutar `autorizarPermisosFTIC04` en Apps Script con el usuario que despliega.
+- Probar nuevamente la generacion F-TIC-04 desde la URL `/exec` vigente.
+
 ## 2026-06-04 - Onboarding local y prompt de rewind
 
 Tipo de cambio: documentacion, gobierno, soporte a colaboracion local.

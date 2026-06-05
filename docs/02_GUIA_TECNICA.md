@@ -80,6 +80,7 @@ Funciones publicas vigentes para `google.script.run`:
 - `getPersonnelList`
 - `getImportLogTable`
 - `buscarActivosParaGenerarFTIC04`
+- `autorizarPermisosFTIC04`
 - `generarFTIC04DesdeActivo`
 - `generarFTIC04DesdePayload`
 
@@ -178,6 +179,12 @@ y el scope ya existe en `appsscript.json`, la causa probable no es el codigo loc
 - La WebApp abierta corresponde a un deployment antiguo.
 - El deployment nuevo todavia no fue reautorizado por el usuario que despliega.
 - El usuario ejecutor no acepto el nuevo consentimiento despues del cambio de scopes.
+
+Funcion auxiliar disponible para forzar/verificar autorizacion sin generar un acta real:
+
+```javascript
+autorizarPermisosFTIC04()
+```
 
 El deployment productivo vigente registrado es:
 

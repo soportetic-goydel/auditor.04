@@ -109,7 +109,7 @@
         setButtonLoading(generateButton, false);
 
         if (!res.ok) {
-          showStatus('generateStatus', 'err', res.message || 'No se pudo generar el F-TIC-04.');
+          showStatus('generateStatus', 'err', normalizeFtic04GenerationMessage(res.message || 'No se pudo generar el F-TIC-04.'));
           return;
         }
 
@@ -133,9 +133,19 @@
       })
       .withFailureHandler(function(err) {
         setButtonLoading(generateButton, false);
-        showStatus('generateStatus', 'err', err.message || String(err));
+        showStatus('generateStatus', 'err', normalizeFtic04GenerationMessage(err.message || String(err)));
       })
       .generarFTIC04DesdeActivo(selectedGeneratorAsset.id_activo || selectedGeneratorAsset.serie_service_tag);
+  }
+
+  function normalizeFtic04GenerationMessage(message) {
+    const text = String(message || '');
+
+    if (text.indexOf('UrlFetchApp.fetch') !== -1 || text.indexOf('script.external_request') !== -1) {
+      return 'Falta reautorizar permisos de Apps Script para exportar PDF. Ejecuta autorizarPermisosFTIC04 en el proyecto Auditor_VS04 con el usuario que despliega y vuelve a probar la WebApp.';
+    }
+
+    return text;
   }
 
   function joinPreviewParts(parts) {

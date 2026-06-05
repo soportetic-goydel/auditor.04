@@ -121,9 +121,10 @@ https://script.google.com/macros/s/AKfycbyPSJorPbCYpVphDvDkqfAdAHjmq7lF-tMoh2KDc
 ```
 
 2. Abrir el proyecto Apps Script principal `Auditor_VS04`.
-3. Ejecutar una funcion simple, por ejemplo `doGet`, con el usuario que despliega.
+3. Ejecutar `autorizarPermisosFTIC04` con el usuario que despliega.
 4. Aceptar nuevamente los permisos solicitados.
-5. Volver a abrir la WebApp desplegada y probar `F-TIC-04`.
+5. Confirmar que la funcion devuelve `ok: true`.
+6. Volver a abrir la WebApp desplegada y probar `F-TIC-04`.
 
 Nota: `clasp push` y `clasp redeploy` suben el manifest, pero no aceptan permisos por el usuario. La autorizacion ocurre cuando el usuario ejecutor acepta el consentimiento en Apps Script/WebApp.
 
