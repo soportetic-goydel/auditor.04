@@ -13,12 +13,24 @@ function autorizarPermisosFTIC04() {
     const masterSpreadsheet = SpreadsheetApp.openById(CONFIG.MASTER.SPREADSHEET_ID);
     const referenceSpreadsheet = SpreadsheetApp.openById(CONFIG.REFERENCE_DB.SPREADSHEET_ID);
     const remainingMailQuota = MailApp.getRemainingDailyQuota();
+    const usuarioAutorizacion = Session.getEffectiveUser().getEmail() || Session.getActiveUser().getEmail();
+
+    if (!usuarioAutorizacion) {
+      throw new Error('No se pudo determinar el correo del usuario que autoriza permisos F-TIC-04.');
+    }
+
+    MailApp.sendEmail({
+      to: usuarioAutorizacion,
+      subject: '[Auditor_VS04] Autorizacion de permisos F-TIC-04',
+      body: 'Correo automatico de autorizacion. Si recibes este mensaje, MailApp.sendEmail ya quedo autorizado para F-TIC-04.'
+    });
 
     return {
       ok: true,
       result: {
         responseCode: fetchResponse.getResponseCode(),
         usuario: getActiveUserEmail_(),
+        usuarioAutorizacion,
         fecha: nowString_(),
         carpetaRaiz: rootFolder.getName(),
         plantillaFtic04: templateFile.getName(),

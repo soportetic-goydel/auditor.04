@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-06-05 - Autorizacion explicita de correo F-TIC-04
+
+Tipo de cambio: soporte operativo, permisos.
+
+Contexto:
+
+- La WebApp ya entraba al flujo nuevo de firma, pero al presionar `Generar F-TIC-04` reportaba falta de permiso para `MailApp.sendEmail`.
+- `autorizarPermisosFTIC04` consultaba la cuota de correo, pero se necesitaba forzar exactamente la llamada `MailApp.sendEmail` para completar el consentimiento del scope `https://www.googleapis.com/auth/script.send_mail`.
+
+Cambios realizados:
+
+- `autorizarPermisosFTIC04` ahora envia un correo automatico de autorizacion al usuario efectivo que ejecuta la funcion.
+- Se mantiene la verificacion de UrlFetchApp, DriveApp, SpreadsheetApp y cuota de MailApp.
+
+Despliegue:
+
+- `clasp push --force`: OK, 48 archivos subidos.
+- Version creada: `21`.
+- Deployment actualizado: `AKfycbyPSJorPbCYpVphDvDkqfAdAHjmq7lF-tMoh2KDc0Vr3VVX9AKMSsLvcKk5nFC8q_P7fA`.
+- Descripcion: `VS04 - forzar autorizacion correo F-TIC-04`.
+- URL `/exec`: `https://script.google.com/macros/s/AKfycbyPSJorPbCYpVphDvDkqfAdAHjmq7lF-tMoh2KDc0Vr3VVX9AKMSsLvcKk5nFC8q_P7fA/exec`.
+- Rollback operativo inmediato: redeployar el mismo Deployment ID a la version `20`.
+
 ## 2026-06-05 - Flujo de firma F-TIC-04 desde activo seleccionado
 
 Tipo de cambio: funcionalidad, firma, correo, Drive/PDF.
