@@ -22,9 +22,17 @@ Cambios realizados:
 
 Pendiente:
 
-- Desplegar como nueva version Apps Script numerada.
 - Reautorizar permisos de correo, Drive, Sheets y UrlFetchApp.
 - Probar con activo real y correo interno.
+
+Despliegue:
+
+- `clasp push --force`: OK, 48 archivos subidos.
+- Version creada: `20`.
+- Deployment actualizado: `AKfycbyPSJorPbCYpVphDvDkqfAdAHjmq7lF-tMoh2KDc0Vr3VVX9AKMSsLvcKk5nFC8q_P7fA`.
+- Descripcion: `VS04 - firma diferida F-TIC-04`.
+- URL `/exec`: `https://script.google.com/macros/s/AKfycbyPSJorPbCYpVphDvDkqfAdAHjmq7lF-tMoh2KDc0Vr3VVX9AKMSsLvcKk5nFC8q_P7fA/exec`.
+- Rollback operativo inmediato: redeployar el mismo Deployment ID a la version `19`.
 
 ## 2026-06-05 - Soporte de reautorizacion F-TIC-04
 
