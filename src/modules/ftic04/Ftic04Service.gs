@@ -85,6 +85,8 @@ function generarFTIC04DesdePayload(payload, options) {
       pdfUrl: '',
       signatureUrl: signatureRequest.signatureUrl,
       signatureStatus: signatureRequest.estado,
+      emailSent: !!signatureRequest.emailSent,
+      emailError: signatureRequest.emailError || '',
       emailFirma: signatureRequest.email_firma,
       folderUrl: folder.getUrl(),
       idActivo: normalizedPayload.id_activo,
@@ -96,7 +98,9 @@ function generarFTIC04DesdePayload(payload, options) {
     registrarLogGeneracionFTIC04_(
       normalizedPayload,
       'PENDIENTE_FIRMA',
-      'F-TIC-04 preliminar generado y solicitud de firma enviada.',
+      signatureRequest.emailSent
+        ? 'F-TIC-04 preliminar generado y solicitud de firma enviada.'
+        : 'F-TIC-04 preliminar generado. Correo de firma no enviado: ' + (signatureRequest.emailError || 'sin detalle'),
       result.folderUrl,
       result.documentUrl,
       ''
@@ -105,7 +109,9 @@ function generarFTIC04DesdePayload(payload, options) {
     return {
       ok: true,
       result: result,
-      message: 'Solicitud de firma F-TIC-04 enviada a ' + emailFirma + '.'
+      message: signatureRequest.emailSent
+        ? 'Solicitud de firma F-TIC-04 enviada a ' + emailFirma + '.'
+        : 'Solicitud de firma F-TIC-04 creada, pero no se pudo enviar el correo. Usa el enlace de firma mostrado en pantalla.'
     };
   } catch (err) {
     registrarLogGeneracionFTIC04_(

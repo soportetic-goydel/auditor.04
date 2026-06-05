@@ -152,7 +152,11 @@
           pdfLink.classList.remove('hidden');
         }
 
-        showStatus('generateStatus', 'ok', res.message || 'F-TIC-04 generado correctamente.');
+        showStatus(
+          'generateStatus',
+          result.emailSent === false ? 'warn' : 'ok',
+          res.message || 'F-TIC-04 generado correctamente.'
+        );
       })
       .withFailureHandler(function(err) {
         setButtonLoading(generateButton, false);

@@ -192,7 +192,7 @@ El deployment productivo vigente registrado es:
 
 ```text
 Deployment ID: AKfycbwC34HUXdR0tmNiNJDD4hC2d13XHH0FLoADhyaAb4X3ZW6ZRnsMqd2fHlhoblBa2-Occg
-Version: 22
+Version: 23
 URL /exec: https://script.google.com/macros/s/AKfycbwC34HUXdR0tmNiNJDD4hC2d13XHH0FLoADhyaAb4X3ZW6ZRnsMqd2fHlhoblBa2-Occg/exec
 ```
 

@@ -37,10 +37,26 @@ function crearSolicitudFirmaFTIC04_(payload, folder, documentResult, emailFirma)
     mensaje: 'Solicitud de firma creada.'
   };
 
-  appendSolicitudFirmaFTIC04_(request);
-  enviarSolicitudFirmaFTIC04_(request, signatureUrl);
+  const rowNumber = appendSolicitudFirmaFTIC04_(request);
+  let emailSent = false;
+  let emailError = '';
 
+  try {
+    enviarSolicitudFirmaFTIC04_(request, signatureUrl);
+    emailSent = true;
+  } catch (err) {
+    emailError = err.message || 'No se pudo enviar el correo de firma F-TIC-04.';
+    request.mensaje = 'Solicitud de firma creada. No se pudo enviar el correo: ' + emailError;
+    actualizarSolicitudFirmaFTIC04_(rowNumber, {
+      mensaje: request.mensaje,
+      usuario_ejecucion: getActiveUserEmail_()
+    });
+  }
+
+  request.row_number = rowNumber;
   request.signatureUrl = signatureUrl;
+  request.emailSent = emailSent;
+  request.emailError = emailError;
   return request;
 }
 
@@ -207,6 +223,7 @@ function appendSolicitudFirmaFTIC04_(entry) {
   const source = entry || {};
   const row = CONFIG.FTIC04_SIGNATURE_HEADERS.map(header => clean_(source[header]));
   sheet.appendRow(row);
+  return sheet.getLastRow();
 }
 
 function actualizarSolicitudFirmaFTIC04_(rowNumber, updates) {

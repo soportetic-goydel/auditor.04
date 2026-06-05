@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-06-05 - Fallback de enlace de firma si falla MailApp
+
+Tipo de cambio: resiliencia operativa, F-TIC-04.
+
+Contexto:
+
+- El envio de correo con `MailApp.sendEmail` seguia fallando por autorizacion del scope `https://www.googleapis.com/auth/script.send_mail`.
+- Para no bloquear las pruebas del flujo, la generacion del acta debe crear la solicitud y exponer el enlace de firma aunque el correo no pueda enviarse.
+
+Cambios realizados:
+
+- `crearSolicitudFirmaFTIC04_` ahora captura errores de envio de correo y mantiene la solicitud en estado `PENDIENTE_FIRMA`.
+- La respuesta de `generarFTIC04DesdePayload` incluye `emailSent` y `emailError`.
+- La UI muestra advertencia si el correo falla, pero deja visibles el enlace de firma y el documento preliminar.
+
+Despliegue:
+
+- `clasp push --force`: OK, 48 archivos subidos.
+- Version creada: `23`.
+- Deployment actualizado: `AKfycbwC34HUXdR0tmNiNJDD4hC2d13XHH0FLoADhyaAb4X3ZW6ZRnsMqd2fHlhoblBa2-Occg`.
+- Descripcion: `VS04 - enlace firma si correo falla`.
+- URL `/exec`: `https://script.google.com/macros/s/AKfycbwC34HUXdR0tmNiNJDD4hC2d13XHH0FLoADhyaAb4X3ZW6ZRnsMqd2fHlhoblBa2-Occg/exec`.
+
 ## 2026-06-05 - Nuevo deployment WebApp ejecutando como soporte
 
 Tipo de cambio: despliegue, permisos.
