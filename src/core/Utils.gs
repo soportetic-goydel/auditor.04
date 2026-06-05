@@ -162,6 +162,15 @@ function isLikelyUrl_(value) {
   return /^https?:\/\/\S+\.\S+/i.test(text);
 }
 
+function isEmail_(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean_(value));
+}
+
+function extractEmail_(value) {
+  const match = clean_(value).match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
+  return match ? match[0] : '';
+}
+
 function getActiveUserEmail_() {
   try {
     return Session.getActiveUser().getEmail() || '';

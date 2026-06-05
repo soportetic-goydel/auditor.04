@@ -134,21 +134,23 @@ Nota: `clasp push` y `clasp redeploy` suben el manifest, pero no aceptan permiso
 2. Buscar activo por ID, serie/IMEI, hostname o usuario asignado.
 3. Seleccionar el activo correcto.
 4. Revisar la vista previa.
-5. Presionar `Generar F-TIC-04`.
-6. Abrir documento o PDF desde los botones resultantes.
-7. Revisar `LOG_IMPORTACIONES` para confirmar accion `GENERAR_F_TIC_04`.
+5. Confirmar o completar el correo para firma.
+6. Presionar `Generar F-TIC-04`.
+7. El sistema crea documento preliminar y envia enlace de firma por correo.
+8. El usuario abre el enlace `?modo=firma&token=...`, dibuja la firma y confirma.
+9. El sistema inserta la firma, genera PDF final y actualiza la solicitud.
+10. Revisar `LOG_IMPORTACIONES` para confirmar accion `GENERAR_F_TIC_04`.
 
 ## Firma del acta F-TIC-04
 
 Estado operativo actual:
 
-- Si la plantilla configurada ya tiene una firma fija, se mantiene en las copias generadas.
-- La WebApp todavia no captura ni inserta una firma dinamica.
-- La celda/rango de referencia existe tecnicamente como `CONFIG.FTIC04.CELLS.firma`, pero no se usa aun para insertar imagen.
+- La WebApp captura firma dinamica mediante enlace con token.
+- La firma se inserta en `CONFIG.FTIC04.CELLS.firma`.
+- El PDF final se genera despues de firmar.
 
 PENDIENTE de gobierno:
 
-- Definir si la firma sera fija, por usuario, por responsable TIC o capturada al momento de generar el acta.
 - Definir responsable de mantener las firmas.
 - Definir si la firma sera obligatoria para bloquear o permitir la generacion del acta.
 

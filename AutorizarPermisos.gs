@@ -12,6 +12,7 @@ function autorizarPermisosFTIC04() {
     const auditorSpreadsheet = SpreadsheetApp.openById(CONFIG.AUDITOR.SPREADSHEET_ID);
     const masterSpreadsheet = SpreadsheetApp.openById(CONFIG.MASTER.SPREADSHEET_ID);
     const referenceSpreadsheet = SpreadsheetApp.openById(CONFIG.REFERENCE_DB.SPREADSHEET_ID);
+    const remainingMailQuota = MailApp.getRemainingDailyQuota();
 
     return {
       ok: true,
@@ -23,7 +24,8 @@ function autorizarPermisosFTIC04() {
         plantillaFtic04: templateFile.getName(),
         inventarioOficial: auditorSpreadsheet.getName(),
         inventarioMaestro: masterSpreadsheet.getName(),
-        referencias: referenceSpreadsheet.getName()
+        referencias: referenceSpreadsheet.getName(),
+        correosDisponibles: remainingMailQuota
       },
       message: 'Permisos F-TIC-04 verificados. Ya puedes volver a generar el acta.'
     };

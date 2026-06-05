@@ -22,8 +22,17 @@
 
         <div id="generatePreview" class="note hidden"></div>
 
+        <div id="signatureRequestPanel" class="note hidden">
+          <label for="signatureEmailInput"><strong>Correo para firma</strong></label>
+          <input id="signatureEmailInput" type="email" placeholder="usuario@goydel.com">
+          <span>Se enviará un enlace para firmar el F-TIC-04. El PDF final se generará cuando la firma sea registrada.</span>
+        </div>
+
         <div class="action-row">
           <button type="button" id="generateFtic04Button" class="success" onclick="generateFtic04Document()" disabled>Generar F-TIC-04</button>
+          <a id="generatedFtic04SignatureLink" class="hidden" href="#" target="_blank" rel="noopener">
+            <button type="button">Abrir firma</button>
+          </a>
           <a id="generatedFtic04DocumentLink" class="hidden" href="#" target="_blank" rel="noopener">
             <button type="button">Abrir documento</button>
           </a>

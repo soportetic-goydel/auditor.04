@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Firma F-TIC-04</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --blue: #1f5fae;
+      --border: #d7e0ea;
+      --text: #1d2f45;
+      --muted: #5e6d7d;
+      --ok: #0f7a3b;
+      --err: #b42318;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #f4f7fb;
+      color: var(--text);
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+
+    main {
+      width: min(560px, 100%);
+      margin: 0 auto;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 22px;
+      box-shadow: 0 8px 24px rgba(29, 47, 69, 0.08);
+    }
+
+    h1 {
+      font-size: 22px;
+      margin: 0 0 14px;
+      color: var(--blue);
+      letter-spacing: 0;
+    }
+
+    .summary {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      margin: 14px 0;
+      background: #f8fbff;
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .summary strong { display: inline-block; min-width: 92px; }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 170px;
+      border: 2px dashed var(--blue);
+      border-radius: 6px;
+      background: #fff;
+      touch-action: none;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    button, .link-button {
+      border: 0;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .primary { background: var(--blue); color: #fff; }
+    .secondary { background: #edf2f7; color: var(--text); }
+    .success { background: var(--ok); color: #fff; }
+
+    button:disabled {
+      opacity: .65;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 14px;
+      padding: 11px 12px;
+      border-radius: 6px;
+      background: #eef3f8;
+      color: var(--muted);
+      font-size: 14px;
+      white-space: pre-line;
+    }
+
+    .status.ok { background: #dcfce7; color: var(--ok); }
+    .status.err { background: #fee4e2; color: var(--err); }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Firma F-TIC-04</h1>
+    <div id="status" class="status">Cargando solicitud...</div>
+
+    <section id="signatureSection" class="hidden">
+      <div class="summary">
+        <div><strong>Usuario:</strong> <span id="summaryUser"></span></div>
+        <div><strong>DNI:</strong> <span id="summaryDni"></span></div>
+        <div><strong>Activo:</strong> <span id="summaryAsset"></span></div>
+        <div><strong>Serie:</strong> <span id="summarySerie"></span></div>
+        <div><strong>Hostname:</strong> <span id="summaryHostname"></span></div>
+      </div>
+
+      <label for="signatureCanvas"><strong>Dibuje su firma:</strong></label>
+      <canvas id="signatureCanvas"></canvas>
+
+      <div class="actions">
+        <button type="button" class="secondary" onclick="clearSignature()">Limpiar</button>
+        <button type="button" id="signButton" class="success" onclick="submitSignature()">Confirmar firma</button>
+      </div>
+    </section>
+
+    <section id="doneSection" class="hidden">
+      <div class="summary">
+        <div><strong>Estado:</strong> <span id="doneStatus"></span></div>
+        <div><strong>Activo:</strong> <span id="doneAsset"></span></div>
+      </div>
+      <div class="actions">
+        <a id="documentLink" class="link-button secondary hidden" href="#" target="_blank" rel="noopener">Abrir documento</a>
+        <a id="pdfLink" class="link-button primary hidden" href="#" target="_blank" rel="noopener">Abrir PDF</a>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const token = '<?= tokenUrl ?>';
+    let request = null;
+    let drawing = false;
+    let hasSignature = false;
+    let canvas = null;
+    let ctx = null;
+
+    window.onload = function() {
+      canvas = document.getElementById('signatureCanvas');
+      ctx = canvas.getContext('2d');
+      initCanvas();
+      loadRequest();
+    };
+
+    function loadRequest() {
+      if (!token) {
+        setStatus('err', 'No se recibió token de firma.');
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (!res.ok) {
+            setStatus('err', res.message || 'No se encontró la solicitud.');
+            return;
+          }
+
+          request = res.result || {};
+
+          if (request.estado === 'PENDIENTE_FIRMA') {
+            renderPending(request);
+            return;
+          }
+
+          renderDone(request, res.message || 'Solicitud procesada.');
+        })
+        .withFailureHandler(function(err) {
+          setStatus('err', err.message || String(err));
+        })
+        .buscarSolicitudFirmaFTIC04(token);
+    }
+
+    function renderPending(data) {
+      document.getElementById('summaryUser').textContent = data.usuario || '-';
+      document.getElementById('summaryDni').textContent = data.dni || '-';
+      document.getElementById('summaryAsset').textContent = data.idActivo || '-';
+      document.getElementById('summarySerie').textContent = data.serie || '-';
+      document.getElementById('summaryHostname').textContent = data.hostname || '-';
+      document.getElementById('signatureSection').classList.remove('hidden');
+      setStatus('', 'Revise los datos y firme en el recuadro.');
+      setTimeout(initCanvas, 50);
+    }
+
+    function renderDone(data, message) {
+      document.getElementById('signatureSection').classList.add('hidden');
+      document.getElementById('doneSection').classList.remove('hidden');
+      document.getElementById('doneStatus').textContent = data.estado || '-';
+      document.getElementById('doneAsset').textContent = data.idActivo || '-';
+
+      if (data.documentUrl) {
+        const link = document.getElementById('documentLink');
+        link.href = data.documentUrl;
+        link.classList.remove('hidden');
+      }
+
+      if (data.pdfUrl) {
+        const link = document.getElementById('pdfLink');
+        link.href = data.pdfUrl;
+        link.classList.remove('hidden');
+      }
+
+      setStatus('ok', message || 'Solicitud procesada.');
+    }
+
+    function initCanvas() {
+      if (!canvas || !ctx) return;
+
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.max(320, Math.floor(rect.width));
+      canvas.height = 170;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#111111';
+      ctx.lineCap = 'round';
+
+      canvas.onmousedown = startDraw;
+      canvas.onmousemove = moveDraw;
+      canvas.onmouseup = stopDraw;
+      canvas.onmouseleave = stopDraw;
+      canvas.ontouchstart = startDraw;
+      canvas.ontouchmove = moveDraw;
+      canvas.ontouchend = stopDraw;
+    }
+
+    function getPos(event) {
+      const rect = canvas.getBoundingClientRect();
+      const point = event.touches ? event.touches[0] : event;
+      return {
+        x: point.clientX - rect.left,
+        y: point.clientY - rect.top
+      };
+    }
+
+    function startDraw(event) {
+      event.preventDefault();
+      drawing = true;
+      hasSignature = true;
+      const pos = getPos(event);
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+    }
+
+    function moveDraw(event) {
+      if (!drawing) return;
+      event.preventDefault();
+      const pos = getPos(event);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+    }
+
+    function stopDraw() {
+      drawing = false;
+    }
+
+    function clearSignature() {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      hasSignature = false;
+    }
+
+    function submitSignature() {
+      if (!hasSignature) {
+        setStatus('err', 'Dibuje su firma antes de confirmar.');
+        return;
+      }
+
+      const button = document.getElementById('signButton');
+      button.disabled = true;
+      button.textContent = 'Procesando...';
+      setStatus('', 'Insertando firma y generando PDF...');
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          button.disabled = false;
+          button.textContent = 'Confirmar firma';
+
+          if (!res.ok) {
+            setStatus('err', res.message || 'No se pudo registrar la firma.');
+            return;
+          }
+
+          renderDone(res.result || {}, res.message || 'Firma registrada.');
+        })
+        .withFailureHandler(function(err) {
+          button.disabled = false;
+          button.textContent = 'Confirmar firma';
+          setStatus('err', err.message || String(err));
+        })
+        .procesarFirmaFTIC04({
+          token: token,
+          firmaDataUrl: canvas.toDataURL('image/png')
+        });
+    }
+
+    function setStatus(type, message) {
+      const el = document.getElementById('status');
+      el.className = 'status' + (type ? ' ' + type : '');
+      el.textContent = message;
+    }
+  </script>
+</body>
+</html>

@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-06-05 - Flujo de firma F-TIC-04 desde activo seleccionado
+
+Tipo de cambio: funcionalidad, firma, correo, Drive/PDF.
+
+Contexto:
+
+- El modulo F-TIC-04 debe llenar el acta desde el activo seleccionado por serie/ID/hostname/usuario.
+- El PDF final no debe generarse hasta que el usuario registre su firma.
+- El flujo anterior del usuario usaba `Codigo.gs`, `Index.html` y `FirmaUsuario.html`; se adapto al proyecto modular sin reemplazar `Index.html`.
+
+Cambios realizados:
+
+- Se agrego ruta WebApp `?modo=firma&token=...`.
+- Se agrego vista `src/modules/ftic04/Ftic04SignatureView.html` con canvas de firma.
+- Se agrego servicio `src/modules/ftic04/Ftic04SignatureService.gs`.
+- El boton `Generar F-TIC-04` ahora crea acta preliminar, registra solicitud pendiente y envia correo de firma.
+- El PDF final se genera despues de insertar la firma.
+- Se agrego hoja de control `F_TIC_04_FIRMAS` en el spreadsheet maestro.
+- Se agrego scope `https://www.googleapis.com/auth/script.send_mail`.
+
+Pendiente:
+
+- Desplegar como nueva version Apps Script numerada.
+- Reautorizar permisos de correo, Drive, Sheets y UrlFetchApp.
+- Probar con activo real y correo interno.
+
 ## 2026-06-05 - Soporte de reautorizacion F-TIC-04
 
 Tipo de cambio: soporte operativo, diagnostico, UI.

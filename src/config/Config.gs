@@ -68,6 +68,16 @@ const CONFIG = {
     PDF_ENABLED: true,
     FILE_NAME_PATTERN: '{prefix} - {id_activo} - {hostname} - {serie} - {stamp}',
     PLACEHOLDERS: {},
+    SIGNATURE: {
+      REQUEST_SHEET_NAME: 'F_TIC_04_FIRMAS',
+      STATUS_PENDING: 'PENDIENTE_FIRMA',
+      STATUS_SIGNED: 'FIRMADO',
+      STATUS_ERROR: 'ERROR',
+      EMAIL_SUBJECT_PREFIX: 'Firma de Acta F-TIC-04',
+      SIGNATURE_FILE_PREFIX: 'FIRMA F-TIC-04',
+      SIGNATURE_WIDTH: 200,
+      SIGNATURE_HEIGHT: 60
+    },
     SHEET_NAME: '',
     CHECK_MARK: 'X',
     DEFAULT_REASON_CELL_KEY: 'requirimiento',
@@ -197,5 +207,28 @@ const CONFIG = {
     'carpeta_documental',
     'url_documento',
     'url_pdf'
+  ],
+
+  FTIC04_SIGNATURE_HEADERS: [
+    'fecha_creacion',
+    'token',
+    'estado',
+    'id_activo',
+    'serie_service_tag',
+    'hostname',
+    'dni_usuario',
+    'usuario_asignado',
+    'email_firma',
+    'document_file_id',
+    'document_url',
+    'folder_id',
+    'folder_url',
+    'signature_file_id',
+    'signature_url',
+    'pdf_file_id',
+    'pdf_url',
+    'fecha_firma',
+    'usuario_ejecucion',
+    'mensaje'
   ]
 };

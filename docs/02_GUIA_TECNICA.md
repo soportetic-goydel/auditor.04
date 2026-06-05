@@ -83,6 +83,8 @@ Funciones publicas vigentes para `google.script.run`:
 - `autorizarPermisosFTIC04`
 - `generarFTIC04DesdeActivo`
 - `generarFTIC04DesdePayload`
+- `buscarSolicitudFirmaFTIC04`
+- `procesarFirmaFTIC04`
 
 Las funciones internas nuevas deben terminar con `_`.
 
@@ -245,19 +247,21 @@ CONFIG.FTIC04 = {
 }
 ```
 
-La generacion usa datos de `MC-F-TIC-05` o `F-TIC-05`, crea copia de plantilla, exporta PDF con `UrlFetchApp.fetch` y registra accion `GENERAR_F_TIC_04` en `LOG_IMPORTACIONES`.
+La generacion usa datos de `MC-F-TIC-05` o `F-TIC-05`, crea copia preliminar de plantilla, envia enlace de firma por correo y registra accion `GENERAR_F_TIC_04` en `LOG_IMPORTACIONES`. El PDF final se exporta con `UrlFetchApp.fetch` despues de registrar la firma.
 
 ### Flujo tecnico F-TIC-04
 
 1. `buscarActivosParaGenerarFTIC04(query)` busca coincidencias por ID, serie/IMEI, hostname o usuario.
-2. `generarFTIC04DesdeActivo(idActivo)` resuelve el activo desde `MC-F-TIC-05` o `F-TIC-05`.
-3. `generarFTIC04DesdePayload(payload)` normaliza datos, aplica reglas del inventario y toma lock de script.
+2. `generarFTIC04DesdeActivo(idActivo, options)` resuelve el activo desde `MC-F-TIC-05` o `F-TIC-05`.
+3. `generarFTIC04DesdePayload(payload, options)` normaliza datos, aplica reglas del inventario y toma lock de script.
 4. `obtenerCarpetaDestinoFTIC04_()` usa la carpeta documental del activo o `CONFIG.FTIC04.OUTPUT_FOLDER_ID`.
-5. `crearDocumentoFTIC04_()` copia la plantilla `CONFIG.FTIC04.TEMPLATE_ID`.
+5. `crearDocumentoFTIC04_()` copia la plantilla `CONFIG.FTIC04.TEMPLATE_ID` sin exportar PDF aun.
 6. `aplicarPayloadEnPlantillaFTIC04_()` escribe valores y marcas en celdas declaradas en `CONFIG.FTIC04.CELLS`.
-7. `exportarSpreadsheetGeneracionFTIC04_()` exporta PDF mediante `UrlFetchApp.fetch` usando `ScriptApp.getOAuthToken()`.
-8. `guardarPdfFTIC04_()` guarda el PDF en Drive si `CONFIG.FTIC04.PDF_ENABLED` esta activo.
-9. `registrarLogGeneracionFTIC04_()` escribe log con documento, PDF y carpeta.
+7. `crearSolicitudFirmaFTIC04_()` registra token en `F_TIC_04_FIRMAS` y envia correo con `?modo=firma&token=...`.
+8. `procesarFirmaFTIC04(datos)` inserta imagen en `CONFIG.FTIC04.CELLS.firma`.
+9. `exportarSpreadsheetGeneracionFTIC04_()` exporta PDF mediante `UrlFetchApp.fetch` usando `ScriptApp.getOAuthToken()`.
+10. `guardarPdfFTIC04_()` guarda el PDF en Drive si `CONFIG.FTIC04.PDF_ENABLED` esta activo.
+11. `registrarLogGeneracionFTIC04_()` escribe log con documento, PDF y carpeta.
 
 ### Firma F-TIC-04
 

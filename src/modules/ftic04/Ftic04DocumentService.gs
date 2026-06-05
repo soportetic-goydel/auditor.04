@@ -2,9 +2,10 @@
  * Creacion de documento y PDF para F-TIC-04.
  *******************************************************/
 
-function crearDocumentoFTIC04_(payload, folder) {
+function crearDocumentoFTIC04_(payload, folder, options) {
   const p = prepararPayloadGeneracionFTIC04_(payload);
   const config = obtenerConfigGeneracionFTIC04_();
+  const opts = options || {};
   const templateId = clean_(config.TEMPLATE_ID || config.TEMPLATE_SPREADSHEET_ID);
 
   if (!templateId) {
@@ -21,7 +22,7 @@ function crearDocumentoFTIC04_(payload, folder) {
   SpreadsheetApp.flush();
 
   const pdfName = construirNombreArchivoGeneracionFTIC04_(p, config.PDF_NAME_PREFIX, config) + '.pdf';
-  const pdfBlob = config.PDF_ENABLED === false
+  const pdfBlob = opts.skipPdf || config.PDF_ENABLED === false
     ? null
     : exportarSpreadsheetGeneracionFTIC04_(copy.getId(), sheet.getSheetId(), pdfName, config);
 
@@ -198,6 +199,35 @@ function exportarSpreadsheetGeneracionFTIC04_(spreadsheetId, sheetId, pdfName, c
   }
 
   return response.getBlob().setName(pdfName);
+}
+
+function insertarFirmaEnDocumentoFTIC04_(spreadsheetId, firmaDataUrl, config) {
+  const cfg = config || obtenerConfigGeneracionFTIC04_();
+  const signatureConfig = cfg.SIGNATURE || {};
+  const signatureCell = clean_(cfg.CELLS && cfg.CELLS.firma) || 'K48';
+  const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+  const sheet = obtenerHojaPlantillaGeneracionFTIC04_(spreadsheet, cfg);
+  const range = sheet.getRange(signatureCell);
+  const base64Data = clean_(firmaDataUrl).split(',')[1];
+
+  if (!base64Data) {
+    throw new Error('No se recibió imagen de firma válida.');
+  }
+
+  const blob = Utilities.newBlob(
+    Utilities.base64Decode(base64Data),
+    'image/png',
+    'firma-ftic04.png'
+  );
+  const image = sheet.insertImage(blob, range.getColumn(), range.getRow());
+  image.setWidth(Number(signatureConfig.SIGNATURE_WIDTH || 200));
+  image.setHeight(Number(signatureConfig.SIGNATURE_HEIGHT || 60));
+  SpreadsheetApp.flush();
+
+  return {
+    blob: blob,
+    sheetId: sheet.getSheetId()
+  };
 }
 
 function construirNombreArchivoGeneracionFTIC04_(payload, prefix, config) {

@@ -30,7 +30,7 @@ function buscarActivosParaGenerarFTIC04(query) {
   }
 }
 
-function generarFTIC04DesdeActivo(idActivo) {
+function generarFTIC04DesdeActivo(idActivo, options) {
   try {
     const record = resolverActivoGeneracionFTIC04_(idActivo);
 
@@ -42,7 +42,7 @@ function generarFTIC04DesdeActivo(idActivo) {
       };
     }
 
-    return generarFTIC04DesdePayload(record.payload);
+    return generarFTIC04DesdePayload(record.payload, options || {});
   } catch (err) {
     return {
       ok: false,
@@ -52,7 +52,7 @@ function generarFTIC04DesdeActivo(idActivo) {
   }
 }
 
-function generarFTIC04DesdePayload(payload) {
+function generarFTIC04DesdePayload(payload, options) {
   const lock = LockService.getScriptLock();
   let normalizedPayload = {};
 
@@ -60,35 +60,52 @@ function generarFTIC04DesdePayload(payload) {
     lock.waitLock(30000);
 
     normalizedPayload = prepararPayloadGeneracionFTIC04_(payload);
+    const opts = options || {};
+    const emailFirma = clean_(
+      opts.emailFirma ||
+      opts.email ||
+      extractEmail_(normalizedPayload.software_o_correo)
+    );
+
+    if (!isEmail_(emailFirma)) {
+      throw new Error('Ingresa un correo válido para enviar la solicitud de firma F-TIC-04.');
+    }
+
     const folder = obtenerCarpetaDestinoFTIC04_(normalizedPayload);
-    const documentResult = crearDocumentoFTIC04_(normalizedPayload, folder);
-    const pdfFile = documentResult.pdfBlob
-      ? guardarPdfFTIC04_(folder, documentResult.pdfBlob, documentResult.pdfName)
-      : null;
+    const documentResult = crearDocumentoFTIC04_(normalizedPayload, folder, { skipPdf: true });
+    const signatureRequest = crearSolicitudFirmaFTIC04_(
+      normalizedPayload,
+      folder,
+      documentResult,
+      emailFirma
+    );
 
     const result = {
       documentUrl: documentResult.documentUrl,
-      pdfUrl: pdfFile ? pdfFile.getUrl() : '',
+      pdfUrl: '',
+      signatureUrl: signatureRequest.signatureUrl,
+      signatureStatus: signatureRequest.estado,
+      emailFirma: signatureRequest.email_firma,
       folderUrl: folder.getUrl(),
       idActivo: normalizedPayload.id_activo,
       serie: normalizedPayload.serie_service_tag,
       documentFileId: documentResult.documentFileId,
-      pdfFileId: pdfFile ? pdfFile.getId() : ''
+      pdfFileId: ''
     };
 
     registrarLogGeneracionFTIC04_(
       normalizedPayload,
-      'OK',
-      'F-TIC-04 generado correctamente.',
+      'PENDIENTE_FIRMA',
+      'F-TIC-04 preliminar generado y solicitud de firma enviada.',
       result.folderUrl,
       result.documentUrl,
-      result.pdfUrl
+      ''
     );
 
     return {
       ok: true,
       result: result,
-      message: 'F-TIC-04 generado correctamente.'
+      message: 'Solicitud de firma F-TIC-04 enviada a ' + emailFirma + '.'
     };
   } catch (err) {
     registrarLogGeneracionFTIC04_(

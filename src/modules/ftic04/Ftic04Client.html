@@ -10,6 +10,8 @@
 
     selectedGeneratorAsset = null;
     document.getElementById('generateFtic04Button').disabled = true;
+    document.getElementById('signatureRequestPanel').classList.add('hidden');
+    document.getElementById('generatedFtic04SignatureLink').classList.add('hidden');
     document.getElementById('generatedFtic04DocumentLink').classList.add('hidden');
     document.getElementById('generatedFtic04PdfLink').classList.add('hidden');
     document.getElementById('generatePreview').classList.add('hidden');
@@ -70,6 +72,7 @@
   function selectGeneratorAsset(index) {
     selectedGeneratorAsset = generatorAssetCache[index] || null;
     document.getElementById('generateFtic04Button').disabled = !selectedGeneratorAsset;
+    document.getElementById('generatedFtic04SignatureLink').classList.add('hidden');
     document.getElementById('generatedFtic04DocumentLink').classList.add('hidden');
     document.getElementById('generatedFtic04PdfLink').classList.add('hidden');
 
@@ -89,6 +92,11 @@
       'Estado operativo: ' + escapeHtml(selectedGeneratorAsset.estado_operativo || '-') + '<br>' +
       'Origen: ' + escapeHtml(selectedGeneratorAsset.source || '-');
 
+    const signaturePanel = document.getElementById('signatureRequestPanel');
+    const signatureEmail = document.getElementById('signatureEmailInput');
+    signaturePanel.classList.remove('hidden');
+    signatureEmail.value = selectedGeneratorAsset.email_firma || extractEmailFromText(selectedGeneratorAsset.software_o_correo || '');
+
     showStatus('generateStatus', 'ok', 'Activo seleccionado. Ya puedes generar el F-TIC-04.');
   }
 
@@ -99,9 +107,17 @@
     }
 
     const generateButton = document.getElementById('generateFtic04Button');
+    const signatureEmail = document.getElementById('signatureEmailInput').value.trim();
+
+    if (!isValidEmailText(signatureEmail)) {
+      showStatus('generateStatus', 'err', 'Ingresa un correo válido para enviar la firma F-TIC-04.');
+      return;
+    }
+
+    document.getElementById('generatedFtic04SignatureLink').classList.add('hidden');
     document.getElementById('generatedFtic04DocumentLink').classList.add('hidden');
     document.getElementById('generatedFtic04PdfLink').classList.add('hidden');
-    showStatus('generateStatus', 'warn', 'Generando F-TIC-04 desde el proyecto principal...');
+    showStatus('generateStatus', 'warn', 'Creando acta preliminar y enviando solicitud de firma...');
     setButtonLoading(generateButton, true, 'Procesando...');
 
     google.script.run
@@ -116,6 +132,13 @@
         const result = res.result || {};
         const documentUrl = result.documentUrl || '';
         const pdfUrl = result.pdfUrl || '';
+        const signatureUrl = result.signatureUrl || '';
+
+        if (signatureUrl) {
+          const signatureLink = document.getElementById('generatedFtic04SignatureLink');
+          signatureLink.href = signatureUrl;
+          signatureLink.classList.remove('hidden');
+        }
 
         if (documentUrl) {
           const documentLink = document.getElementById('generatedFtic04DocumentLink');
@@ -135,7 +158,9 @@
         setButtonLoading(generateButton, false);
         showStatus('generateStatus', 'err', normalizeFtic04GenerationMessage(err.message || String(err)));
       })
-      .generarFTIC04DesdeActivo(selectedGeneratorAsset.id_activo || selectedGeneratorAsset.serie_service_tag);
+      .generarFTIC04DesdeActivo(selectedGeneratorAsset, {
+        emailFirma: signatureEmail
+      });
   }
 
   function normalizeFtic04GenerationMessage(message) {
@@ -146,6 +171,15 @@
     }
 
     return text;
+  }
+
+  function extractEmailFromText(value) {
+    const match = String(value || '').match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
+    return match ? match[0] : '';
+  }
+
+  function isValidEmailText(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
   }
 
   function joinPreviewParts(parts) {

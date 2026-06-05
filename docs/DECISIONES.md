@@ -1,5 +1,21 @@
 # Decisiones Tecnicas y de Diseno
 
+## 2026-06-05 - Firma F-TIC-04 mediante token y no solo DNI
+
+Contexto: el flujo previo de firma usaba `?modo=firma&dni=...`, pero el modulo actual genera actas desde activos seleccionados y puede haber mas de una solicitud para el mismo DNI.
+
+Decision: usar `?modo=firma&token=...` con token unico registrado en `F_TIC_04_FIRMAS`.
+
+Impacto:
+
+- La pantalla de firma no depende solo del DNI.
+- Se evita ambiguedad cuando un usuario tiene varias actas pendientes.
+- El token permite ubicar documento, carpeta, estado, correo y PDF final.
+
+Riesgo:
+
+- El enlace de firma debe tratarse como sensible y enviarse solo al correo definido para la solicitud.
+
 ## 2026-06-04 - Usar docs como punto unico de rewind para trabajo local
 
 Contexto: el proyecto se trabaja localmente en VSCode y se despliega con `clasp`, por lo que un nuevo colaborador necesita entender arquitectura, reglas, riesgos y despliegue antes de modificar archivos.

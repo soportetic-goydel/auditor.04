@@ -151,7 +151,10 @@ function construirItemBusquedaGeneracionFTIC04_(payload, source, rowNumber) {
     marca: p.marca,
     modelo: p.modelo,
     centro_de_costo: p.centro_de_costo,
-    estado_operativo: p.estado_operativo
+    estado_operativo: p.estado_operativo,
+    dni_usuario: p.dni_usuario,
+    software_o_correo: p.software_o_correo,
+    email_firma: extractEmail_(p.software_o_correo)
   };
 }
 
