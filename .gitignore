@@ -10,5 +10,8 @@ node_modules/
 
 Thumbs.db
 .DS_Store
+desktop.ini
+
+.sixth/
 
 ftic05/
