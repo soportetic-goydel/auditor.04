@@ -4,16 +4,26 @@
 
 function autorizarPermisosFTIC04() {
   try {
-    const response = UrlFetchApp.fetch('https://www.google.com/generate_204', {
+    const fetchResponse = UrlFetchApp.fetch('https://www.google.com/generate_204', {
       muteHttpExceptions: true
     });
+    const rootFolder = DriveApp.getFolderById(CONFIG.DRIVE.ROOT_FOLDER_ID);
+    const templateFile = DriveApp.getFileById(CONFIG.FTIC04.TEMPLATE_ID);
+    const auditorSpreadsheet = SpreadsheetApp.openById(CONFIG.AUDITOR.SPREADSHEET_ID);
+    const masterSpreadsheet = SpreadsheetApp.openById(CONFIG.MASTER.SPREADSHEET_ID);
+    const referenceSpreadsheet = SpreadsheetApp.openById(CONFIG.REFERENCE_DB.SPREADSHEET_ID);
 
     return {
       ok: true,
       result: {
-        responseCode: response.getResponseCode(),
+        responseCode: fetchResponse.getResponseCode(),
         usuario: getActiveUserEmail_(),
-        fecha: nowString_()
+        fecha: nowString_(),
+        carpetaRaiz: rootFolder.getName(),
+        plantillaFtic04: templateFile.getName(),
+        inventarioOficial: auditorSpreadsheet.getName(),
+        inventarioMaestro: masterSpreadsheet.getName(),
+        referencias: referenceSpreadsheet.getName()
       },
       message: 'Permisos F-TIC-04 verificados. Ya puedes volver a generar el acta.'
     };
