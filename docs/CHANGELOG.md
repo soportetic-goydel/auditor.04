@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-06-05 - Nuevo deployment WebApp ejecutando como soporte
+
+Tipo de cambio: despliegue, permisos.
+
+Contexto:
+
+- El deployment anterior seguia ejecutando como `Usuario que accede a la app web`, por lo que `MailApp.sendEmail` fallaba con el scope `https://www.googleapis.com/auth/script.send_mail`.
+- El manifest define `executeAs: USER_DEPLOYING`; se creo un deployment nuevo para no heredar la configuracion antigua del deployment previo.
+- Se ajusto `access` a `ANYONE` para permitir que firmantes con cuenta Google externa puedan abrir el enlace de firma.
+
+Despliegue:
+
+- `clasp push --force`: OK, 48 archivos subidos.
+- Version creada: `22`.
+- Deployment nuevo: `AKfycbwC34HUXdR0tmNiNJDD4hC2d13XHH0FLoADhyaAb4X3ZW6ZRnsMqd2fHlhoblBa2-Occg`.
+- Descripcion: `VS04 - ejecutar como soporte`.
+- URL `/exec`: `https://script.google.com/macros/s/AKfycbwC34HUXdR0tmNiNJDD4hC2d13XHH0FLoADhyaAb4X3ZW6ZRnsMqd2fHlhoblBa2-Occg/exec`.
+- Deployment anterior con el problema de identidad: `AKfycbyPSJorPbCYpVphDvDkqfAdAHjmq7lF-tMoh2KDc0Vr3VVX9AKMSsLvcKk5nFC8q_P7fA`.
+
 ## 2026-06-05 - Autorizacion explicita de correo F-TIC-04
 
 Tipo de cambio: soporte operativo, permisos.
